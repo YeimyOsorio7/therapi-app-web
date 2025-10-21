@@ -1,27 +1,27 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createUser } from "../services/api";
+// import { createUser } from "../services/api";
 
-const [signUp, setSignUp] = useState({ username: "", password: "" });
-const [loadingSignUp, setLoadingSignUp] = useState(false);
-const [msg, setMsg] = useState("");
+// const [signUp, setSignUp] = useState({ username: "", password: "" });
+// const [loadingSignUp, setLoadingSignUp] = useState(false);
+// const [msg, setMsg] = useState("");
 
-async function onCreateAccount(e) {
-  e.preventDefault();
-  setMsg("");
-  setLoadingSignUp(true);
-  try {
-    const resp = await createUser(signUp);
-    setMsg("Usuario creado correctamente.");
-    // TODO: redirigir si quieres
-    // navigate("/login")
-  } catch (err) {
-    setMsg(`Error al crear usuario: ${err.message}`);
-  } finally {
-    setLoadingSignUp(false);
-  }
-}
+// async function onCreateAccount(e) {
+//   e.preventDefault();
+//   setMsg("");
+//   setLoadingSignUp(true);
+//   try {
+//     const resp = await createUser(signUp);
+//     setMsg("Usuario creado correctamente.");
+//     // TODO: redirigir si quieres
+//     // navigate("/login")
+//   } catch (err) {
+//     setMsg(`Error al crear usuario: ${err.message}`);
+//   } finally {
+//     setLoadingSignUp(false);
+//   }
+// }
 
 const Login = () => {
   const [form, setForm] = useState({ user: '', password: '' });

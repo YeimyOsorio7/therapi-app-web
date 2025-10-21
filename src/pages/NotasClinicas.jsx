@@ -8,7 +8,9 @@ const getNotasLS = () => {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch (e) {
+    throw new Error("Error leyendo desde LocalStorage", e);
+  }
   // Semilla inicial si no hay nada guardado
   return [
     {
@@ -31,7 +33,10 @@ const getNotasLS = () => {
 const setNotasLS = (arr) => {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(arr));
-  } catch {}
+  } catch (e) {
+    throw new Error("Error guardando en LocalStorage", e);
+    
+  }
 };
 
 /* ========================= Utils ========================= */

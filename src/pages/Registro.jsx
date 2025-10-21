@@ -7,15 +7,17 @@ import { createUser, getAllPacientes } from "../services/api";
 const RESERVED_USERNAMES = new Set(['psicologa', 'admin', 'administrador']);
 
 // --- Componente Toast Simple ---
-const Toast = ({ message, type, onClose }) => {
-  if (!message) return null;
-
+const Toast = ({ message, onClose }) => {
   useEffect(() => {
+    if (!message) return;
+    
     const timer = setTimeout(() => {
       onClose();
     }, 5000); // 5 segundos
     return () => clearTimeout(timer);
   }, [message, onClose]);
+
+  if (!message) return null;
 
   const baseStyle = "fixed top-5 right-5 z-50 p-4 rounded-lg shadow-lg text-white animate-fade-in-down";
   // Usaremos siempre el estilo de error para este mensaje específico
@@ -71,6 +73,23 @@ export default function Registro() {
     fetchUsernames();
   }, []);
 
+  // 3. Generar sugerencias (sin cambios)
+  const generateSuggestions = useCallback((baseUsername) => { 
+    const newSuggestions = [];
+    const suffixes = [ Math.floor(10 + Math.random() * 90), `_${(new Date()).getFullYear().toString().slice(-2)}`, '1' ];
+    for (const suffix of suffixes) {
+        if (newSuggestions.length >= 3) break;
+        const suggestion = `${baseUsername}${suffix}`;
+        if (!existingUsernames.has(suggestion.toLowerCase())) { newSuggestions.push(suggestion); }
+    }
+    if (newSuggestions.length === 0) {
+        let fallback = `${baseUsername}${Date.now() % 100}`; let i = 0;
+        while(existingUsernames.has(fallback.toLowerCase()) && i < 5) { fallback = `${baseUsername}${Date.now() % 100 + i + 1}`; i++; }
+        if (!existingUsernames.has(fallback.toLowerCase())) newSuggestions.push(fallback);
+    }
+    setSuggestions(newSuggestions.slice(0, 3));
+  }, [existingUsernames]);
+
   // 2. Validar nombre de usuario (con debounce) -> Muestra error en Toast y activa borde
   useEffect(() => {
     if (!form.usuario.trim()) {
@@ -110,24 +129,7 @@ export default function Registro() {
 
     return () => clearTimeout(debounceTimer);
 
-  }, [form.usuario, existingUsernames]);
-
-  // 3. Generar sugerencias (sin cambios)
-  const generateSuggestions = (baseUsername) => { /* ... (código igual que antes) ... */
-    const newSuggestions = [];
-    const suffixes = [ Math.floor(10 + Math.random() * 90), `_${(new Date()).getFullYear().toString().slice(-2)}`, '1' ];
-    for (const suffix of suffixes) {
-        if (newSuggestions.length >= 3) break;
-        const suggestion = `${baseUsername}${suffix}`;
-        if (!existingUsernames.has(suggestion.toLowerCase())) { newSuggestions.push(suggestion); }
-    }
-    if (newSuggestions.length === 0) {
-        let fallback = `${baseUsername}${Date.now() % 100}`; let i = 0;
-        while(existingUsernames.has(fallback.toLowerCase()) && i < 5) { fallback = `${baseUsername}${Date.now() % 100 + i + 1}`; i++; }
-        if (!existingUsernames.has(fallback.toLowerCase())) newSuggestions.push(fallback);
-    }
-    setSuggestions(newSuggestions.slice(0, 3));
-  };
+  }, [form.usuario, existingUsernames, generateSuggestions]);
 
   // Manejar cambios en inputs (Limpia toast y error al escribir en usuario)
   const handleChange = (e) => {

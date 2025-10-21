@@ -337,7 +337,7 @@ const VerPacientes = () => {
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((p) => {
+                  pageRows.map((p, idxPage) => {
                     const editing = editId === (p.no - 1); 
                     const row = editing ? draft : p;
                     return (

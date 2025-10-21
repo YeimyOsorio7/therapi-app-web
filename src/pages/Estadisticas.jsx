@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Document, Packer, Paragraph, Table, TableRow, TableCell } from 'docx';
-import { saveAs } from 'file-saver';
+// import { saveAs } from 'file-saver';
 // ✅ Importamos la función de API correcta
 import { getAllPacientes } from '../services/api';
 
