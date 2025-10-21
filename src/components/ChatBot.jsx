@@ -33,15 +33,22 @@ const ChatBot = () => {
     const userMessage = { sender: 'user', text: input };
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
+    console.log('Sending message to API:', input);
+    console.log('Current messages:', JSON.stringify(messages));
     try {
       // Assumes you have a proxy setup in vite.config.js for /api
-      const response = await fetch('/api/chat_agent', {
+      const response = await fetch('https://us-central1-tera-bot-1ba7c.cloudfunctions.net/chat_agent', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({
+          messages: input,
+          user_id: "BIG7g7KqwSxYc1Fl8stJ",
+        }),
       });
+      console.log('API Response:', response);
       if (!response.ok) throw new Error(`Error del servidor: ${response.status}`);
       const data = await response.json();
-      setMessages((prev) => [...prev, { sender: 'bot', text: data.reply }]);
+      console.log('API Data:', data);
+      setMessages((prev) => [...prev, { sender: 'bot', text: data.respuesta_asistente }]);
     } catch (error) {
       console.error('Error al conectar con la API:', error);
       setMessages((prev) => [...prev, { sender: 'bot', text: 'Lo siento, algo salió mal.' }]);
