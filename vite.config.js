@@ -1,18 +1,16 @@
-// vite.config.js
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
     proxy: {
-      // Todo lo que empiece con /api irá al dominio de Cloud Functions.
-      "/api": {
-        target: "https://us-central1-tera-bot-1ba7c.cloudfunctions.net",
+      // Cualquier petición que empiece con '/api' será redirigida a tu backend
+      '/api': {
+        target: 'https://us-central1-tera-bot-1ba7c.cloudfunctions.net',
         changeOrigin: true,
-        secure: true,
-        rewrite: (path) => path.replace(/^\/api/, ""), // /api/create_user -> /create_user
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

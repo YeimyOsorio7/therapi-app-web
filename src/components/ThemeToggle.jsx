@@ -24,11 +24,14 @@ const ThemeToggle = ({ className = "" }) => {
     <button
       type="button"
       onClick={() => setDark(v => !v)}
-      className={`inline-flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 dark:border-gray-700 bg-indigo-500 text-white shadow ${className}`}
-      title={dark ? "Oscuro" : "Claro"}
+      className={`inline-flex items-center justify-center w-10 h-10 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md transition-all hover:scale-105 ${className}`}
+      title={dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       aria-label="Cambiar tema"
     >
-      <span className="text-lg">{dark ? "🌙" : "☀️"}</span>
+      {/* ✅ ICON LOGIC CORRECTED: Shows the icon for the mode it WILL switch TO */}
+      {/* If currently dark (dark is true), show Sun (☀️) to indicate switching to light */}
+      {/* If currently light (dark is false), show Moon (🌙) to indicate switching to dark */}
+      <span className="text-lg">{dark ? "☀️" : "🌙"}</span>
     </button>
   );
 };

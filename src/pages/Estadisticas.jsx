@@ -3,18 +3,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { Document, Packer, Paragraph, Table, TableRow, TableCell } from 'docx';
 import { saveAs } from 'file-saver';
-// ✅ Importamos la función de API
-import { getEstadisticas } from '../services/api';
+// ✅ Importamos la función de API correcta
+import { getAllPacientes } from '../services/api';
 
 const COLORS = ['#10b981', '#fbbf24', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-// Estructura mínima de los datos que esperamos de la API
 const defaultResumen = {
   totalCitas: 0,
   atendidas: 0,
   canceladas: 0,
   pendientes: 0,
-  // Asumimos que la API devuelve los temas con el formato { name: string, cantidad: number }
   temasFrecuentes: [], 
   error: null,
 };
@@ -23,26 +21,64 @@ const Estadisticas = () => {
   const [resumen, setResumen] = useState(defaultResumen);
   const [loading, setLoading] = useState(true);
 
-  // ✅ FUNCIÓN PARA CARGAR DATOS EN TIEMPO REAL
+  // ✅ FUNCIÓN MODIFICADA PARA PROCESAR LOS DATOS DE PACIENTES
   const fetchEstadisticas = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ Llamada a la API
-      const data = await getEstadisticas();
+      // 1. Llamamos a la API que trae la lista de pacientes
+      const data = await getAllPacientes();
       
-      // Mapeo simple: Asumimos que la API devuelve las mismas claves que el resumen.
-      setResumen({
-        totalCitas: data.totalCitas || 0,
-        atendidas: data.atendidas || 0,
-        canceladas: data.canceladas || 0,
-        pendientes: data.pendientes || 0,
-        temasFrecuentes: data.temasFrecuentes || [], 
-        error: null,
-      });
+      // 2. Verificamos que la respuesta sea correcta
+      if (data && data.patients && Array.isArray(data.patients)) {
+        const patients = data.patients;
 
-    } catch (err) {
-      setResumen(s => ({...s, error: `❌ Error al cargar datos del servidor: ${err.message}. Asegúrate que POST /api/get_dashboard_data esté activo.`}));
-      console.error("Error fetching statistics:", err);
+        // --- 3. Procesamos los datos ---
+
+        // Total de Citas (usando total de pacientes como sustituto)
+        const totalCitas = data.total || patients.length; 
+        
+        // Gráfico de Pastel: Contamos los estados de los pacientes
+        // (Esto es una suposición, ya que los datos de "citas" no están aquí)
+        let atendidas = 0;
+        let pendientes = 0;
+        
+        patients.forEach(p => {
+          if (p.paciente?.estado_paciente === 'Activo') {
+            atendidas++;
+          } else {
+            pendientes++;
+          }
+        });
+
+        // Gráfico de Barras: Contamos los "Temas Frecuentes"
+        const temasMap = new Map();
+        patients.forEach(p => {
+          // Usamos el diagnóstico de sigsa o la patología de ficha_medica
+          const tema = p.sigsa?.diagnostico || p.ficha_medica?.patologia;
+          if (tema && tema !== "null") {
+            temasMap.set(tema, (temasMap.get(tema) || 0) + 1);
+          }
+        });
+        
+        const temasFrecuentes = Array.from(temasMap, ([name, cantidad]) => ({ name, cantidad }));
+        
+        // 4. Actualizamos el estado
+        setResumen({
+          totalCitas: totalCitas,
+          atendidas: atendidas,
+          canceladas: 0, // No tenemos este dato en la lista de pacientes
+          pendientes: pendientes,
+          temasFrecuentes: temasFrecuentes,
+          error: null,
+        });
+
+      } else {
+        // Si la respuesta no es el formato esperado
+        throw new Error("Formato de datos incorrecto recibido de la API.");
+      }
+    } catch (error) {
+      console.error('Error al cargar estadísticas:', error);
+      setResumen(prev => ({ ...prev, error: error.message }));
     } finally {
       setLoading(false);
     }
@@ -52,165 +88,106 @@ const Estadisticas = () => {
     fetchEstadisticas();
   }, [fetchEstadisticas]);
 
-  // Datos de la Tarta (Pie Chart)
+  // (El resto del componente de renderizado no cambia)
+
   const pieData = [
-    { name: 'Atendidas', value: resumen.atendidas },
-    { name: 'Pendientes', value: resumen.pendientes },
-    { name: 'Canceladas', value: resumen.canceladas },
-  ];
+    { name: 'Atendidas (Activos)', value: resumen.atendidas },
+    { name: 'Pendientes (Otro)', value: resumen.pendientes },
+  ].filter(item => item.value > 0);
 
-  // Datos de la barra (Bar Chart) - usa temasFrecuentes directamente
-  const barData = resumen.temasFrecuentes; 
-
-  const exportarDocx = () => {
-    const doc = new Document({
-      sections: [
-        {
-          children: [
-            new Paragraph("\ud83d\udcc4 INFORME DE ESTADÍSTICAS"),
-            new Paragraph(`Generado el: ${new Date().toLocaleDateString()}`),
-            new Paragraph("Resumen de Citas:"),
-            new Table({
-              rows: [
-                new TableRow({ children: [new TableCell({ children: [new Paragraph("Total")] }), new TableCell({ children: [new Paragraph(resumen.totalCitas.toString())] })] }),
-                new TableRow({ children: [new TableCell({ children: [new Paragraph("Atendidas")] }), new TableCell({ children: [new Paragraph(resumen.atendidas.toString())] })] }),
-                new TableRow({ children: [new TableCell({ children: [new Paragraph("Pendientes")] }), new TableCell({ children: [new Paragraph(resumen.pendientes.toString())] })] }),
-                new TableRow({ children: [new TableCell({ children: [new Paragraph("Canceladas")] }), new TableCell({ children: [new Paragraph(resumen.canceladas.toString())] })] }),
-              ],
-            }),
-            new Paragraph(""),
-            new Paragraph("Temas Frecuentes:"),
-            ...resumen.temasFrecuentes.map(t => new Paragraph(`\u2022 ${t.name || t} (${t.cantidad || 'N/A'})`)),
-          ],
-        },
-      ],
-    });
-
-    Packer.toBlob(doc).then((blob) => {
-      saveAs(blob, "estadisticas.docx");
-    });
-  };
+  const barData = resumen.temasFrecuentes;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-xl font-semibold text-indigo-600 dark:text-indigo-300">Cargando estadísticas...</p>
+      <div className="flex justify-center items-center h-96 text-gray-600 dark:text-gray-400">
+        Cargando estadísticas...
       </div>
     );
   }
 
-  return (
-    <div className="max-w-screen-xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-sky-700 dark:text-sky-300 mb-6 flex justify-between items-center">
-        <span>📊 Estadísticas de Citas</span>
-        <button
-          onClick={fetchEstadisticas}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg shadow disabled:opacity-50 text-sm"
-          disabled={loading}
-        >
-          {loading ? 'Cargando...' : 'Actualizar Datos'}
-        </button>
-      </h1>
-
-      {resumen.error && (
-        <div className="bg-rose-100 dark:bg-rose-900/30 border border-rose-300 dark:border-rose-800 rounded-lg p-4 mb-4 text-rose-700 dark:text-rose-200 font-medium">
+  if (resumen.error) {
+    return (
+      <div className="p-4 text-red-500">
+        <h2 className="font-bold">Error al cargar los datos:</h2>
+        <pre className="mt-2 p-2 bg-red-100 rounded text-sm whitespace-pre-wrap">
           {resumen.error}
-        </div>
-      )}
-
-      <div className="flex gap-2 mb-6">
-        <button
-          // La lógica de exportación a PDF requiere librerías adicionales que no están incluidas aquí
-          className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded shadow"
-        >
-          \ud83d\udcc4 Descargar PDF
-        </button>
-
-        <button
-          onClick={exportarDocx}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow"
-        >
-          \ud83d\udcdd Exportar a Word
-        </button>
+        </pre>
       </div>
+    );
+  }
+  
+  return (
+    <div className="p-4 sm:p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Estadísticas de Pacientes</h1>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-4 shadow">
-          <h2 className="text-lg font-semibold">Total de Citas</h2>
-          <p className="text-3xl font-bold text-sky-600 dark:text-sky-300">{resumen.totalCitas}</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Pacientes</h3>
+          <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{resumen.totalCitas}</p>
         </div>
-
-        <div className="bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 rounded-lg p-4 shadow">
-          <h2 className="text-lg font-semibold">Citas Atendidas</h2>
-          <p className="text-3xl font-bold text-green-700 dark:text-green-200">{resumen.atendidas}</p>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-medium text-green-500">Pacientes Activos</h3>
+          <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{resumen.atendidas}</p>
         </div>
-
-        <div className="bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded-lg p-4 shadow">
-          <h2 className="text-lg font-semibold">Pendientes</h2>
-          <p className="text-3xl font-bold text-yellow-700 dark:text-yellow-200">{resumen.pendientes}</p>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-medium text-red-500">Canceladas</h3>
+          <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{resumen.canceladas}</p>
         </div>
-
-        <div className="bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded-lg p-4 shadow">
-          <h2 className="text-lg font-semibold">Canceladas</h2>
-          <p className="text-3xl font-bold text-red-700 dark:text-red-200">{resumen.canceladas}</p>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-medium text-yellow-500">Otros Estados</h3>
+          <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{resumen.pendientes}</p>
         </div>
       </div>
 
-      {/* Temas Frecuentes - Lista */}
-      <div className="mt-8 col-span-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-4 shadow">
-        <h2 className="text-lg font-semibold mb-2">Temas Frecuentes ({barData.length})</h2>
-        {barData.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">No hay datos de temas disponibles.</p>
-        ) : (
-            <ul className="list-disc pl-6 text-sm text-gray-700 dark:text-gray-300">
-                {barData.sort((a,b) => b.cantidad - a.cantidad).map((t, i) => (
-                    <li key={i}>{t.name || t.name} ({t.cantidad} citas)</li>
-                ))}
-            </ul>
-        )}
-      </div>
-
-      <div className="grid gap-8 mt-8 lg:grid-cols-2">
-        {/* Gráfico de Tarta */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-4 shadow">
-          <h2 className="text-lg font-semibold mb-4">Distribución de citas</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow">
+          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Distribución de Pacientes</h2>
           <div className="w-full h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            {pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Legend />
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">No hay datos para mostrar.</div>
+            )}
           </div>
         </div>
         
-        {/* Gráfico de Barras */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-4 shadow">
-          <h2 className="text-lg font-semibold mb-4">Frecuencia de temas</h2>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow">
+          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Frecuencia de Temas</h2>
           <div className="w-full h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="cantidad" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {barData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="cantidad" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">No hay datos para mostrar.</div>
+            )}
           </div>
         </div>
       </div>

@@ -1,42 +1,24 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* Estilos para el contenedor principal de la aplicación */
+.App {
   text-align: center;
+  display: flex;
+  flex-direction: column; /* Organiza los elementos en una columna */
+  min-height: 100vh; /* Asegura que la app ocupe toda la altura de la pantalla */
+  background-color: #f0f2f5; /* Color de fondo suave */
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Estilos para el encabezado */
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+/* Estilos para el contenedor del chatbot */
+.chatbot-wrapper {
+  flex-grow: 1; /* Permite que esta sección crezca y ocupe el espacio disponible */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
 }
