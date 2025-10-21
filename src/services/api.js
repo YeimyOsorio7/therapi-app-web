@@ -1,27 +1,41 @@
 // src/services/api.js
 // Usar SIEMPRE rutas relativas para que el proxy funcione en desarrollo.
 
+// URL BASE PARA LAS PETICIONES A LA API
+const BASE_URL = "https://us-central1-tera-bot-1ba7c.cloudfunctions.net/"
+
+// RUTAS A LAS FUNCIONES DE LA API
 const ENDPOINTS = {
   // Autenticación y Usuarios
-  CREATE_USER: "/api/create_user",
+  CREAR_USUARIO: "create_user",
+  INICIAR_SESION: "login_user",
+
+  // --- PACIENTES ---
   // Información Paciente (Detalles)
-  PACIENTE_INFO: "/api/paciente_info",
-  SIGSA_INFO: "/api/sigsa_info",
-  GET_FICHA_MEDICA: "/api/ficha_medica_info",
-  UPDATE_PATIENT: "/api/update_patient", // Para guardar/actualizar paciente
+  OBTENER_INFO_PACIENTE: "paciente_info",
+  OBTENER_INFO_SIGSA: "sigsa_info",
+  OBTENER_FICHA_MEDICA: "ficha_medica_info",
+  ACTUALIZAR_PACIENTE: "update_patient", // Para guardar/actualizar paciente
   // Listas Generales
-  GET_ALL_PATIENTS: "/api/listar_todos_pacientes",
-  GET_ESTADISTICAS: "/api/get_dashboard_data",
+  OBTENER_TODOS_PACIENTES: "listar_todos_pacientes",
+  OBTENER_ESTADISTICAS: "get_dashboard_data",
   // --- CITAS ---
-  LISTAR_CITAS: "/api/listar_citas_consultorio",   // GET (asumido)
-  CREAR_CITA: "/api/crear_cita_consultorio",       // POST
-  ACTUALIZAR_CITA: "/api/actualizar_cita_consultorio", // POST
-  ELIMINAR_CITA: "/api/eliminar_cita_consultorio",   // POST
+  OBTENER_CITAS: "listar_citas_consultorio",   // GET (asumido)
+  CREAR_CITA: "crear_cita_consultorio",       // POST
+  ACTUALIZAR_CITA: "actualizar_cita_consultorio", // POST
+  ELIMINAR_CITA: "eliminar_cita_consultorio",   // POST
 };
 
 // --- Función GET ---
-async function getJson(url) {
-  const res = await fetch(url, {
+async function getJson(url, payload) {
+  let finalUrl = `${BASE_URL}${url}`;
+  if (payload && Object.keys(payload).length > 0) {
+    const queryParams = new URLSearchParams(payload).toString();
+    console.log("Query Params:", queryParams);
+    finalUrl += `?${queryParams}`;
+  }
+  console.log("GET:", finalUrl);
+  const res = await fetch(finalUrl, {
     method: "GET",
     headers: { "Accept": "application/json" },
   });
@@ -32,12 +46,21 @@ async function getJson(url) {
     const msg = typeof data === "string" ? data : data ? JSON.stringify(data) : `HTTP ${res.status}`;
     const err = new Error(msg); err.status = res.status; throw err;
   }
+
+  if (data.data !== null && data.data !== undefined) {
+    console.log("GET Response Data:", data.data);
+    console.log("GET Full Response:", data);
+    return data.data;
+  }
+
+  console.log("GET Response Data:", data);
   return data;
 }
 
 // --- Función POST ---
 async function postJson(url, payload) {
-  const res = await fetch(url, {
+  console.log("POST:", `${BASE_URL}${url}`);
+  const res = await fetch(`${BASE_URL}${url}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Accept": "application/json" },
     body: JSON.stringify(payload),
@@ -55,18 +78,25 @@ async function postJson(url, payload) {
 // === Endpoints ===
 
 // Usuarios y Pacientes
-export function createUser(payload) { return postJson(ENDPOINTS.CREATE_USER, payload); }
-export function getPacienteInfo(payload) { return postJson(ENDPOINTS.PACIENTE_INFO, payload); }
-export function getSigsaInfo(payload) { return postJson(ENDPOINTS.SIGSA_INFO, payload); }
-export function getFichaMedica(payload) { return postJson(ENDPOINTS.GET_FICHA_MEDICA, payload); }
-export function getAllPacientes() { return getJson(ENDPOINTS.GET_ALL_PATIENTS); }
-export function upsertPatient(payload) { return postJson(ENDPOINTS.UPDATE_PATIENT, payload); }
-export function getEstadisticas() { return postJson(ENDPOINTS.GET_ESTADISTICAS, {}); }
+export function createUser(payload) { return postJson(ENDPOINTS.CREAR_USUARIO, payload); }
+export function getPacienteInfo(payload) { return getJson(ENDPOINTS.OBTENER_INFO_PACIENTE, payload); }
+export function getSigsaInfo(payload) { return getJson(ENDPOINTS.OBTENER_INFO_SIGSA, payload); }
+export function getFichaMedica(payload) {
+  try {
+    return getJson(ENDPOINTS.OBTENER_FICHA_MEDICA, payload);
+  } catch (error) {
+    console.error("Error al obtener ficha médica:", error);
+    throw error;
+  }
+}
+export function getAllPacientes() { return getJson(ENDPOINTS.OBTENER_TODOS_PACIENTES); }
+export function upsertPatient(payload) { return postJson(ENDPOINTS.ACTUALIZAR_PACIENTE, payload); }
+export function getEstadisticas() { return postJson(ENDPOINTS.OBTENER_ESTADISTICAS, {}); }
 
 // --- CITAS ---
 // ✅ Nuevas funciones para Citas
 export function listarCitas() {
-  return getJson(ENDPOINTS.LISTAR_CITAS); // Llama a la función GET
+  return getJson(ENDPOINTS.OBTENER_CITAS); // Llama a la función GET
 }
 export function crearCita(payload) {
   // Asegúrate de que el payload coincida con lo que espera tu backend

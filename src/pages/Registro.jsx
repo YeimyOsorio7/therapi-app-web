@@ -183,6 +183,8 @@ export default function Registro() {
         admin: false,
       });
 
+      console.log("Respuesta de createUser:", resp);
+
       // Manejo de errores de la API
       if (resp && resp.success === false) {
         const errorText = typeof resp.error === "string" ? resp.error : JSON.stringify(resp.error);

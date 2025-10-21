@@ -95,6 +95,7 @@ const VerPacientes = () => {
     setFetchError(null);
     try {
       const data = await getAllPacientes(); 
+      console.log("Request data", data);
       if (!data || !Array.isArray(data.patients)) {
          throw new Error("El servidor no devolvió una lista de pacientes válida. Se esperaba { patients: [...] }");
       }
@@ -147,6 +148,7 @@ const VerPacientes = () => {
     setView(patientRow); 
     setModalData({ sigsa: null, ficha: null, paciente: null, loading: true, error: null });
     const payload = { uid: patientRow.uid };
+    console.log("Fetching details for UID:", payload);
     if (!payload.uid) {
         setModalData({ loading: false, error: "Este paciente no tiene un UID para consultar." });
         return;
@@ -480,7 +482,7 @@ const VerPacientes = () => {
               <p><strong>DPI/CUI:</strong> {modalData.sigsa.cui || 'N/A'}</p>
               <p><strong>Nacimiento:</strong> {modalData.sigsa.fecha_nacimiento || 'N/A'}</p>
               <p><strong>Edad:</strong> {modalData.sigsa.edad || 'N/A'}</p>
-              <p><strong>Sexo:</strong> {modalData.sigsa.genero === "M" ? "Hombre" : "Mujer"}</p>
+              <p><strong>Sexo:</strong> {modalData.sigsa.genero === "M" ? "Hombre" : modalData.sigsa.genero === "F" ? "Mujer" : 'N/A'}</p>
               <p><strong>Municipio:</strong> {modalData.sigsa.municipio || 'N/A'}</p>
               <p><strong>Aldea:</strong> {modalData.sigsa.aldea || 'N/A'}</p>
               <p><strong>Diagnóstico (SIGSA):</strong> {modalData.sigsa.diagnostico || 'N/A'}</p>

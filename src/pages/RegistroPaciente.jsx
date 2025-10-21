@@ -1,8 +1,16 @@
 // src/pages/RegistroPaciente.jsx
-import { useEffect, useState } from "react";
+import {
+  // useEffect,
+  useState
+} from "react";
 // Se asume que upsertPatient, getPacienteInfo, y getSigsaInfo están bien definidas.
 // AÑADE getFichaMedica si la usas
-import { upsertPatient, getPacienteInfo, getSigsaInfo } from "../services/api"; 
+import { 
+  upsertPatient,
+  getPacienteInfo,
+  // getSigsaInfo,
+  // getFichaMedica
+} from "../services/api"; 
 import ThemeToggle from "../components/ThemeToggle"; // si lo usas aquí
 
 export default function RegistroPaciente() {
@@ -34,7 +42,7 @@ const [form, setForm] = useState({
 
 const [loading, setLoading] = useState(false);
 const [msg, setMsg] = useState("");
-const [_sigsa, setSigsa] = useState(null);
+// const [_sigsa, setSigsa] = useState(null);
 
 // Función unificada para manejar cambios
   const handleChange = (key) => (e) => {
@@ -59,18 +67,18 @@ function handleFechaNacimiento(val) {
     };
 
   // Cargar SIGSA al montar
-  useEffect(() => {
-  (async () => {
-  try {
-    const data = await getSigsaInfo(); 
-    setSigsa(data);
-    console.log("SIGSA data loaded:", data);
+  // useEffect(() => {
+  //   (async () => {
+  //   // try {
+  //   //   const data = await getSigsaInfo(); 
+  //   //   setSigsa(data);
+  //   //   console.log("SIGSA data loaded:", data);
 
-  } catch (e) {
-    console.error("SIGSA:", e);
-  }
-  })();
-}, []);
+  //   // } catch (e) {
+  //   //   console.error("SIGSA:", e);
+  //   // }
+  //   })();
+  // }, []);
 
 // Guardar / actualizar paciente
 async function guardarPaciente() {
@@ -101,8 +109,8 @@ async function guardarPaciente() {
       "sigsa_info": {
       "fecha_consulta": nowISO,
       "nombre": form.nombre,
-      "apellido": form.apellido || "Pérez", 
-      "cui": form.dpi || "N/A", 
+      "apellido": form.apellido, 
+      "cui": form.dpi, 
       "fecha_nacimiento": form.fechaNacimiento,
       "edad": ageStr,
       "ninio_menor_15": isMenor15, 
