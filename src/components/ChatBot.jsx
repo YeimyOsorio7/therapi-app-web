@@ -79,11 +79,11 @@ const ChatBot = () => {
         {/* Right Side: Actions & Theme Toggle using .chat-header-actions */}
         <div className="chat-header-actions">
           <Link
-            to="/agendar-cita" // Make sure this route exists if needed
-            className="chat-header-button chat-header-link-agendar"
-          >
-            Agendar Cita
-          </Link>
+  to="/AgendarCita.jsx" // This tells the router WHERE to go
+  className="chat-header-button chat-header-link-agendar"
+>
+  Agendar Cita
+</Link>
           <button
             onClick={handleEndConversation}
             className="chat-header-button chat-header-button-terminar"

@@ -23,7 +23,6 @@ import Citas from "./pages/Citas.jsx";
 import Conversaciones from "./pages/Conversaciones.jsx";
 import NotasClinicas from "./pages/NotasClinicas.jsx";
 import Estadisticas from "./pages/Estadisticas.jsx";
-import Recursos from "./pages/Recursos.jsx";
 import RegistroPaciente from "./pages/RegistroPaciente.jsx";
 import VerPacientes from "./pages/VerPacientes.jsx";
 

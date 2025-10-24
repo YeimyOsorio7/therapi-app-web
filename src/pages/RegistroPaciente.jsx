@@ -1,409 +1,368 @@
 // src/pages/RegistroPaciente.jsx
-import {
-  // useEffect,
-  useState
-} from "react";
-// Se asume que upsertPatient, getPacienteInfo, y getSigsaInfo están bien definidas.
-// AÑADE getFichaMedica si la usas
-import { 
-  upsertPatient,
-  getPacienteInfo,
-  // getSigsaInfo,
-  // getFichaMedica
-} from "../services/api"; 
-import ThemeToggle from "../components/ThemeToggle"; // si lo usas aquí
+import { useState, useCallback, useEffect } from "react";
+import { upsertPatient } from "../services/api"; // Only need upsertPatient for saving
+// import ThemeToggle from "../components/ThemeToggle"; // Uncomment if used
 
 export default function RegistroPaciente() {
-const [form, setForm] = useState({
-  nombre: "",
-  apellido: "", // Añadido para completar el objeto new_info
-  dpi: "",
-// Usaremos ref_patient para el input y para el 'uid' en el payload
-  ref_patient: "", 
-  fechaNacimiento: "",
-  edad: "",
-  sexo: "", // Debería ser M/F
-  tipoConsulta: "", // Primera / Reconsulta
-  patologia: "", // Lo usamos en ficha_medica_info
-  codigo: "", // CIE-10 code
-  tipoTerapia: "",
-  escolaridad: "",
-  ocupacion: "",
-  estadoCivil: "",
-  municipio: "",
-  aldea: "",
-  embarazo: "", // Puede ser "Menor de 14" o valor booleano
-  referido: false,
-  institucion: "",
-  motivo: "",
-  fecha: "", // Fecha de referencia
-  observaciones: "",
-});
+  // --- State for ALL unique form fields ---
+  const [form, setForm] = useState({
+    // Personal Info (Mapped to new_info, sigsa_info, ficha_medica_info)
+    nombre: "",
+    apellido: "",
+    cui: "", // Will be main ID source if available
+    fecha_nacimiento: "",
+    edad: "", // Calculated
+    sexo: "", // Form uses M=Mujer, H=Hombre
+    municipio: "",
+    aldea: "",
+    estado_civil: "", // Ficha Medica
+    escolaridad: "", // Ficha Medica
+    ocupacion: "", // Ficha Medica
 
-const [loading, setLoading] = useState(false);
-const [msg, setMsg] = useState("");
-// const [_sigsa, setSigsa] = useState(null);
+    // Clinical Info (Mapped to sigsa_info, ficha_medica_info)
+    consulta: "", // SIGSA & Ficha (Type) -> Primera / Reconsulta
+    diagnostico: "", // SIGSA -> Diagnostico
+    cie_10: "", // SIGSA -> CIE-10 Code
+    terapia: "", // SIGSA -> Therapy Type
 
-// Función unificada para manejar cambios
-  const handleChange = (key) => (e) => {
-    const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-    setForm((f) => ({ ...f, [key]: val }));
-  };
+    patologia: "", // Ficha Medica -> Pathology (can be same as diagnostico)
+    cei10: "", // Ficha Medica -> CIE-10 Code (can be same as cie_10)
+    tipo_terapia: "", // Ficha Medica -> Therapy Type (can be same as terapia)
 
-// Calcular edad y actualizar CUI cuando cambia DPI
-function handleFechaNacimiento(val) {
-  const fechaNac = new Date(val);
-  const hoy = new Date();
-  let edad = hoy.getFullYear() - fechaNac.getFullYear();
-  const m = hoy.getMonth() - fechaNac.getMonth();
-  if (m < 0 || (m === 0 && hoy.getDate() < fechaNac.getDate())) edad--;
-  setForm((f) => ({ ...f, fechaNacimiento: val, edad: isNaN(edad) ? "" : edad }));
-  }
-    
-    // Sincronizar DPI con CUI (si son el mismo campo)
-    const handleDPIChange = (e) => {
-      const dpi = e.target.value;
-      setForm((f) => ({ ...f, dpi: dpi })); // Quitamos 'cui: dpi' ya que DPI es la fuente
-    };
+    // Conditional Fields
+    embarazo: "", // Ficha Medica (String value) & SIGSA (Boolean logic) - Only if sexo='M'
+    paciente_referido: false, // Ficha Medica
 
-  // Cargar SIGSA al montar
-  // useEffect(() => {
-  //   (async () => {
-  //   // try {
-  //   //   const data = await getSigsaInfo(); 
-  //   //   setSigsa(data);
-  //   //   console.log("SIGSA data loaded:", data);
+    // Not directly in required payload structure but maybe useful?
+    // institucion: "",
+    // motivo: "",
+    // fecha_referencia: "",
+    // observaciones: "",
+  });
 
-  //   // } catch (e) {
-  //   //   console.error("SIGSA:", e);
-  //   // }
-  //   })();
-  // }, []);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [showDPI, setShowDPI] = useState(false); // Controls DPI visibility
 
-// Guardar / actualizar paciente
-async function guardarPaciente() {
-  if (!form.nombre || !form.sexo || !form.tipoConsulta || !form.patologia || !form.codigo || !form.tipoTerapia) {
-  setMsg("Completa los campos obligatorios.");
-  return;
-  }
-  setLoading(true);
-  setMsg("");
-  try {
-        const nowISO = new Date().toISOString();
-        const ageStr = String(form.edad);
-        const isAdult = ageStr && Number(ageStr) >= 18;
-        const isMenor15 = ageStr && Number(ageStr) < 15;
-        
-      // ✅ CORRECCIÓN FINAL: Payload con la estructura de objetos anidados requerida
-      const payload = {
-      // REQUERIDO: Usamos ref_patient como uid (asumiendo que es el ID del paciente/usuario)
-      "uid": form.ref_patient || form.dpi || "temp_id",
-              
-      "new_info": {
-      "nombre": form.nombre,
-      "apellido": form.apellido || "N/A", 
-      "fecha_consulta": nowISO,
-      "estado_paciente": "Activo"
-      },
+  // --- Handlers ---
+  const handleChange = useCallback((key) => (e) => {
+    const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    setMsg("");
+    setForm((prevForm) => {
+      const updatedForm = { ...prevForm, [key]: value };
 
-      "sigsa_info": {
-      "fecha_consulta": nowISO,
-      "nombre": form.nombre,
-      "apellido": form.apellido, 
-      "cui": form.dpi, 
-      "fecha_nacimiento": form.fechaNacimiento,
-      "edad": ageStr,
-      "ninio_menor_15": isMenor15, 
-      "adulto": isAdult,
-      "genero": form.sexo,
-      "municipio": form.municipio,
-      "aldea": form.aldea,
-      "embarazo": form.sexo === "F" ? (form.embarazo === "Menor de 14" || form.embarazo === ">= edad") : false,
-      "consulta": form.tipoConsulta === "Primera" ? "Primera vez" : "Reconsulta",
-      "diagnostico": form.patologia,
-      "cie_10": form.codigo,
-      "terapia": form.tipoTerapia
-      },
-
-      "ficha_medica_info": {
-      "patologia": form.patologia,
-      "cui": form.dpi || "N/A", 
-      "escolaridad": form.escolaridad,
-      "edad": ageStr,
-      "ocupacion": form.ocupacion,
-      "aldea": form.aldea,
-      "estado_civil": form.estadoCivil,
-      "paciente_referido": form.referido,
-      "sexo": form.sexo,
-      "municipio": form.municipio,
-      "cei10": form.codigo, // Usamos cei10 para coincidir con tu estructura
-      "tipo_consulta": form.tipoConsulta === "Primera" ? "Primera vez" : "Control",
-      "tipo_terapia": form.tipoTerapia,
-      "embarazo": form.embarazo || "N/A"
+      // Reset embarazo if gender is not Female ('M')
+      if (key === 'sexo' && value !== 'M') {
+        updatedForm.embarazo = "";
       }
+      return updatedForm;
+    });
+  }, []);
+
+  const handleFechaNacimiento = useCallback((e) => {
+    const val = e.target.value;
+    let calculatedAge = "";
+    let shouldShowDPI = false;
+    if (val) {
+      try {
+        const fechaNac = new Date(val);
+        const hoy = new Date();
+        let edad = hoy.getFullYear() - fechaNac.getFullYear();
+        const m = hoy.getMonth() - fechaNac.getMonth();
+        if (m < 0 || (m === 0 && hoy.getDate() < fechaNac.getDate())) {
+          edad--;
+        }
+        calculatedAge = isNaN(edad) ? "" : String(edad);
+        shouldShowDPI = !isNaN(edad) && edad >= 18; // Show DPI if 18 or older
+      } catch { calculatedAge = ""; }
+    }
+    setMsg("");
+    setForm((f) => ({ ...f, fecha_nacimiento: val, edad: calculatedAge }));
+    setShowDPI(shouldShowDPI); // Update DPI visibility state
+  }, []);
+
+
+  // --- Submit Function ---
+  const guardarPaciente = async (e) => {
+    e.preventDefault();
+    setMsg("");
+
+    // Basic Validation
+    if (!form.nombre || !form.apellido || !form.fecha_nacimiento || !form.sexo || !form.consulta) {
+      setMsg("❌ Completa los campos obligatorios (*).");
+      return;
+    }
+    if (showDPI && !form.cui) { // Require CUI only if shown (adult)
+      setMsg("❌ El CUI/DPI es obligatorio para mayores de edad.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const nowISO = new Date().toISOString();
+      const ageNum = parseInt(form.edad, 10);
+      const isAdult = !isNaN(ageNum) && ageNum >= 18;
+      const isMenor15 = !isNaN(ageNum) && ageNum < 15;
+
+      // Determine UID: Use CUI if adult, otherwise generate temporary ID.
+      // Backend should generate the final/real UID.
+      const uidToSend = (isAdult && form.cui) ? form.cui : `temp_${Date.now()}`;
+
+      // --- Construct the Payload ---
+      const payload = {
+        "uid": uidToSend,
+        "new_info": {
+          "nombre": form.nombre.trim() || null,
+          "apellido": form.apellido.trim() || null,
+          "fecha_consulta": nowISO,
+          "estado_paciente": "Activo" // Default status
+        },
+        "sigsa_info": {
+          "fecha_consulta": nowISO,
+          "nombre": form.nombre.trim() || null,
+          "apellido": form.apellido.trim() || null,
+          "cui": form.cui || null, // CUI or null
+          "fecha_nacimiento": form.fecha_nacimiento || null,
+          "edad": form.edad || null, // Age as string
+          "ninio_menor_15": isMenor15,
+          "adulto": isAdult,
+          "genero": form.sexo === 'M' ? 'F' : (form.sexo === 'H' ? 'M' : null), // Map M/H -> F/M
+          "municipio": form.municipio || null,
+          "aldea": form.aldea || null,
+          // API expects boolean? Send true only if female and specific value selected
+          "embarazo": form.sexo === 'M' ? (form.embarazo === "Menor de 14" || form.embarazo === ">= edad") : false,
+          "consulta": form.consulta === "Primera" ? "Primera vez" : (form.consulta === "Reconsulta" ? "Control" : null),
+          "diagnostico": form.diagnostico || null,
+          "cie_10": form.cie_10 || null,
+          "terapia": form.terapia || null,
+        },
+        "ficha_medica_info": {
+          "patologia": form.patologia || null, // Can use diagnostico if patologia is empty: form.patologia || form.diagnostico || null
+          "cui": form.cui || null, // CUI or null
+          "escolaridad": form.escolaridad || null,
+          "edad": form.edad || null, // Age as string
+          "ocupacion": form.ocupacion || null,
+          "aldea": form.aldea || null,
+          "estado_civil": form.estado_civil || null,
+          "paciente_referido": form.paciente_referido || false,
+          "genero": form.sexo === 'M' ? 'F' : (form.sexo === 'H' ? 'M' : null), // Map M/H -> F/M
+          "municipio": form.municipio || null,
+          "cei10": form.cei10 || null, // Can use cie_10 if cei10 is empty: form.cei10 || form.cie_10 || null
+          "tipo_consulta": form.consulta === "Primera" ? "Primera vez" : (form.consulta === "Reconsulta" ? "Control" : null),
+          "tipo_terapia": form.tipo_terapia || null, // Can use terapia if tipo_terapia is empty: form.tipo_terapia || form.terapia || null
+          // API expects string "Menor de 14" etc. Send selected value or null
+          "embarazo": form.sexo === 'M' ? (form.embarazo || null) : null
+        }
       };
 
-      await upsertPatient(payload);
-      setMsg("✅ Paciente guardado/actualizado.");
-      } catch (err) {
-      setMsg(`❌ Error: ${err.message}. Revise la consola. (Error probable de autenticación en la API)`);
-      } finally {
+      console.log("Enviando Payload:", JSON.stringify(payload, null, 2));
+
+      const response = await upsertPatient(payload);
+
+      if (response && response.success === false) {
+        throw new Error(response.error || "Error desconocido desde la API.");
+      }
+
+      setMsg("✅ Paciente registrado/actualizado correctamente.");
+      // Optionally reset form: setForm({ /* initial empty state */ });
+
+    } catch (err) {
+      console.error("Error al guardar paciente:", err);
+      setMsg(`❌ Error al guardar: ${err.message}`);
+    } finally {
       setLoading(false);
-      }
-      }
+    }
+  };
 
-      // Buscar y rellenar por DPI
-      async function cargarPacientePorDpi() {
-      if (!form.dpi) {
-      setMsg("Ingresa un DPI para buscar.");
-      return;
-      }
-      setMsg("");
-    try {
-      // Enviar DPI para buscar
-      const data = await getPacienteInfo({ dpi: form.dpi }); 
-      if (!data) {
-        setMsg("No se encontró paciente con ese DPI.");
-        return;
-      }
-      
-      setForm((f) => ({
-        ...f,
-        nombre: data?.nombre ?? f.nombre,
-        ref_patient: data?.ref_patient ?? f.ref_patient, 
-        fechaNacimiento: data?.fecha_nacimiento ?? f.fechaNacimiento,
-        edad: data?.edad ?? f.edad,
-        sexo: data?.sexo ?? f.sexo,
-        tipoConsulta: data?.tipo_consulta ?? f.tipoConsulta,
-        patologia: data?.patologia ?? f.patologia,
-        codigo: data?.cie10 ?? f.codigo,
-        tipoTerapia: data?.terapia ?? f.tipoTerapia,
-        escolaridad: data?.escolaridad ?? f.escolaridad,
-        ocupacion: data?.ocupacion ?? f.ocupacion,
-        estadoCivil: data?.estado_civil ?? f.estadoCivil,
-        municipio: data?.municipio ?? f.municipio,
-        aldea: data?.aldea ?? f.aldea,
-        embarazo: data?.embarazo ?? f.embarazo,
-        referido: data?.referido ?? f.referido,
-        institucion: data?.institucion ?? f.institucion,
-        motivo: data?.motivo ?? f.motivo,
-        fecha: data?.fecha ?? f.fecha,
-        observaciones: data?.observaciones ?? f.observaciones,
-      }));
-      if (data?.fecha_nacimiento) {
-        handleFechaNacimiento(data.fecha_nacimiento);
-      }
-        setMsg("✅ Datos cargados desde el servidor.");
-    } catch (e) {
-      setMsg(`❌ Error buscando paciente: ${e.message}`);
-  }
-}
+  // --- Render Component ---
+  return (
+    // Outer container
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100 to-teal-200 dark:from-gray-900 dark:to-gray-800 p-4">
+      <div className="w-full max-w-4xl"> {/* Increased max-width */}
+        <form
+          onSubmit={guardarPaciente}
+          className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-xl p-6 space-y-8 border border-gray-200 dark:border-gray-700" // Increased space-y
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+              🧾 Registro de Paciente
+            </h1>
+            {/* <ThemeToggle /> */}
+          </div>
 
-return (
-<div className="min-h-screen bg-[#FAF9F6] dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 pt-24">
-<div className="max-w-3xl mx-auto space-y-6">
-<div className="flex items-center justify-between">
-<h1 className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">🧾 Registro de Paciente</h1>
-<ThemeToggle />
-</div>
+          {/* --- Section: Datos Personales --- */}
+          <fieldset className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 pt-2">
+            <legend className="text-lg font-semibold px-2 text-gray-700 dark:text-gray-300">Datos Personales</legend>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-2">
+              <div>
+                <label htmlFor="nombre" className="form-label">Nombre *</label>
+                <input id="nombre" name="nombre" placeholder="Nombre(s)" value={form.nombre} onChange={handleChange("nombre")} required className="form-input"/>
+              </div>
+              <div>
+                <label htmlFor="apellido" className="form-label">Apellido *</label>
+                <input id="apellido" name="apellido" placeholder="Apellido(s)" value={form.apellido} onChange={handleChange("apellido")} required className="form-input"/>
+              </div>
+              <div>
+                <label htmlFor="fecha_nacimiento" className="form-label">Fecha de Nacimiento *</label>
+                <input id="fecha_nacimiento" type="date" value={form.fecha_nacimiento} onChange={handleFechaNacimiento} required className="form-input"/>
+              </div>
+              <div className="flex items-center justify-center p-2 border rounded bg-gray-50 dark:bg-gray-700 text-center">
+                 {/* Age Display */}
+                 {form.edad ? (<span className="text-base font-semibold"> Edad: {form.edad} {form.edad !== "" && parseInt(form.edad, 10) < 18 ? <span className="text-amber-600">(Menor)</span> : <span className="text-emerald-600">(Mayor)</span>} </span>) : (<span className="text-gray-500">Edad Calculada</span>)}
+              </div>
+               {/* Conditional DPI/CUI */}
+               {showDPI ? (
+                <div>
+                  <label htmlFor="cui" className="form-label">CUI / DPI *</label>
+                  <input id="cui" name="cui" placeholder="CUI / DPI" value={form.cui} onChange={handleChange("cui")} required className="form-input"/>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center p-2 border rounded bg-yellow-50 dark:bg-yellow-900/30 text-center">
+                  <span className="text-yellow-700 dark:text-yellow-300 text-sm font-medium">Menor de Edad (No requiere DPI)</span>
+                </div>
+              )}
+              <div>
+                <label htmlFor="sexo" className="form-label">Género *</label>
+                <select id="sexo" name="sexo" value={form.sexo} onChange={handleChange("sexo")} required className="form-select">
+                  <option value="">Seleccionar...</option>
+                  <option value="M">Mujer</option>
+                  <option value="H">Hombre</option>
+                </select>
+              </div>
+               {form.sexo === "M" && ( // Conditional Embarazo
+                  <div>
+                      <label htmlFor="embarazo" className="form-label">Embarazo</label>
+                      <select id="embarazo" name="embarazo" value={form.embarazo} onChange={handleChange("embarazo")} className="form-select">
+                          <option value="">No aplica / No</option>
+                          <option value="Menor de 14">Menor de 14</option>
+                          <option value="Mayor de edad">Mayor de edad</option>
+                      </select>
+                  </div>
+              )}
+              <div>
+                <label htmlFor="estado_civil" className="form-label">Estado Civil</label>
+                <input id="estado_civil" name="estado_civil" placeholder="Ej. Soltero" value={form.estado_civil} onChange={handleChange("estado_civil")} className="form-input"/>
+              </div>
+              <div>
+                <label htmlFor="municipio" className="form-label">Municipio</label>
+                <input id="municipio" name="municipio" placeholder="Municipio" value={form.municipio} onChange={handleChange("municipio")} className="form-input"/>
+              </div>
+              <div>
+                <label htmlFor="aldea" className="form-label">Aldea / Dirección</label>
+                <input id="aldea" name="aldea" placeholder="Aldea o dirección" value={form.aldea} onChange={handleChange("aldea")} className="form-input"/>
+              </div>
+            </div>
+          </fieldset>
 
-<div className="grid gap-4 grid-cols-1 sm:grid-cols-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 rounded-lg">
-{/* DPI + Buscar */}
-<div className="sm:col-span-2 flex gap-2">
-<input
-placeholder="DPI"
-value={form.dpi}
-onChange={handleDPIChange} // Usar el handler de DPI
-className="flex-1 px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-<button
-type="button"
-onClick={cargarPacientePorDpi}
-className="px-4 py-2 rounded bg-slate-600 hover:bg-slate-700 text-white"
->
-Buscar por DPI
-</button>
-</div>
+          {/* --- Section: Ficha Médica --- */}
+          <fieldset className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 pt-2">
+            <legend className="text-lg font-semibold px-2 text-gray-700 dark:text-gray-300">Ficha Médica</legend>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-2">
+                <div>
+                    <label htmlFor="escolaridad" className="form-label">Escolaridad</label>
+                    <input id="escolaridad" name="escolaridad" placeholder="Ej. Diversificado" value={form.escolaridad} onChange={handleChange("escolaridad")} className="form-input"/>
+                </div>
+                <div>
+                    <label htmlFor="ocupacion" className="form-label">Ocupación</label>
+                    <input id="ocupacion" name="ocupacion" placeholder="Ej. Estudiante" value={form.ocupacion} onChange={handleChange("ocupacion")} className="form-input"/>
+                </div>
+                <div>
+                  <label htmlFor="patologia" className="form-label">Patología</label>
+                  <input id="patologia" name="patologia" placeholder="Patología según ficha" value={form.patologia} onChange={handleChange("patologia")} className="form-input"/>
+                </div>
+                 <div>
+                  <label htmlFor="cei10" className="form-label">Código CIE-10 (Ficha)</label>
+                  <input id="cei10" name="cei10" placeholder="Ej. F32.1" value={form.cei10} onChange={handleChange("cei10")} className="form-input"/>
+                </div>
+                 <div>
+                  <label htmlFor="tipo_terapia" className="form-label">Tipo Terapia (Ficha)</label>
+                  <input id="tipo_terapia" name="tipo_terapia" placeholder="Ej. Psicoterapia grupal" value={form.tipo_terapia} onChange={handleChange("tipo_terapia")} className="form-input"/>
+                </div>
+                <div className="lg:col-span-3 pt-2"> {/* Checkbox spans full width */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="paciente_referido"
+                      checked={form.paciente_referido}
+                      onChange={handleChange("paciente_referido")}
+                      className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-sm font-medium">Paciente referido</span>
+                  </label>
+                </div>
+                 {/* Add fields for institucion etc. here if form.paciente_referido is true */}
+            </div>
+          </fieldset>
 
-{/* ✅ CORRECCIÓN 4: Campo de entrada para ref_patient */}
-<input
-placeholder="Referencia ID (ref_patient / uid)"
-value={form.ref_patient}
-onChange={handleChange("ref_patient")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
 
-<input
-placeholder="Nombre completo"
-value={form.nombre}
-onChange={handleChange("nombre")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900 sm:col-span-2"
-/>
+          {/* --- Section: Ficha SIGSA --- */}
+           <fieldset className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 pt-2">
+            <legend className="text-lg font-semibold px-2 text-gray-700 dark:text-gray-300">Ficha SIGSA</legend>
+             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-2">
+                 <div>
+                    <label htmlFor="consulta" className="form-label">Tipo de Consulta *</label>
+                    <select id="consulta" name="consulta" value={form.consulta} onChange={handleChange("consulta")} required className="form-select">
+                        <option value="">Seleccionar...</option>
+                        <option value="Primera">Primera</option>
+                        <option value="Reconsulta">Reconsulta</option>
+                    </select>
+                 </div>
+                 <div>
+                    <label htmlFor="diagnostico" className="form-label">Diagnóstico (SIGSA)</label>
+                    <input id="diagnostico" name="diagnostico" placeholder="Diagnóstico principal" value={form.diagnostico} onChange={handleChange("diagnostico")} className="form-input"/>
+                 </div>
+                 <div>
+                    <label htmlFor="cie_10" className="form-label">CIE-10 (SIGSA)</label>
+                    <input id="cie_10" name="cie_10" placeholder="Ej. F41.1" value={form.cie_10} onChange={handleChange("cie_10")} className="form-input"/>
+                 </div>
+                 <div>
+                    <label htmlFor="terapia" className="form-label">Terapia (SIGSA)</label>
+                    <input id="terapia" name="terapia" placeholder="Ej. Psicoterapia individual" value={form.terapia} onChange={handleChange("terapia")} className="form-input"/>
+                 </div>
+             </div>
+           </fieldset>
 
-{/* Fecha Nacimiento + Edad */}
-<div>
-<label className="text-sm font-semibold block mb-1">Fecha de nacimiento</label>
-<input
-type="date"
-value={form.fechaNacimiento}
-onChange={(e) => handleFechaNacimiento(e.target.value)}
-className="w-full px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-</div>
-<div className="px-3 py-2 border rounded bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100">
-Edad: <strong>{form.edad || "—"} años</strong>{" "}
-<span className={form.edad ? (form.edad < 18 ? "text-amber-600" : "text-emerald-600") : ""}>
-{form.edad ? (form.edad < 18 ? "Menor de edad" : "Mayor de edad") : ""}
-</span>
-</div>
+          {/* --- Actions & Messages --- */}
+          <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+             {/* Message Area */}
+             {msg && (
+                <div className={`mb-4 p-3 rounded-lg border text-sm text-center font-medium
+                  ${msg.startsWith("❌") || msg.startsWith("⚠️")
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300'
+                    : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50 text-green-700 dark:text-green-300'
+                  }`}
+                >
+                  {msg}
+                </div>
+              )}
+             {/* Submit Button */}
+             <button
+                type="submit"
+                disabled={loading}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-60 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+            >
+                {loading ? "Guardando..." : "Guardar Paciente"}
+            </button>
+          </div>
 
-<select
-value={form.sexo}
-onChange={handleChange("sexo")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
->
-<option value="">Sexo</option>
-<option value="M">Mujer</option>
-<option value="H">Hombre</option>
-</select>
-
-<select
-value={form.tipoConsulta}
-onChange={handleChange("tipoConsulta")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
->
-<option value="">Tipo de consulta</option>
-<option value="Primera">Primera</option>
-<option value="Reconsulta">Reconsulta</option>
-</select>
-
-<input
-placeholder="Patología"
-value={form.patologia}
-onChange={handleChange("patologia")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-
-<input
-placeholder="Código CIE-10"
-value={form.codigo}
-onChange={handleChange("codigo")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-
-<input
-placeholder="Tipo de terapia"
-value={form.tipoTerapia}
-onChange={handleChange("tipoTerapia")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-
-<input
-placeholder="Municipio"
-value={form.municipio}
-onChange={handleChange("municipio")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-
-<input
-placeholder="Aldea"
-value={form.aldea}
-onChange={handleChange("aldea")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-
-<input
-placeholder="Escolaridad"
-value={form.escolaridad}
-onChange={handleChange("escolaridad")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-
-<input
-placeholder="Ocupación"
-value={form.ocupacion}
-onChange={handleChange("ocupacion")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-
-<input
-placeholder="Estado civil"
-value={form.estadoCivil}
-onChange={handleChange("estadoCivil")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-
-{form.sexo !== "H" && (
-<select
-value={form.embarazo}
-onChange={handleChange("embarazo")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
->
-<option value="">Embarazo</option>
-<option value="< 14 años">Menor de 14 años</option>
-<option value=">= edad">Mayor de edad</option>
-</select>
-)}
-
-<div className="sm:col-span-2">
-<label className="flex items-center gap-2">
-<input
-type="checkbox"
-checked={form.referido}
-onChange={handleChange("referido")}
-/>
-Paciente referido
-</label>
-</div>
-
-{form.referido && (
-<>
-<input
-placeholder="Institución referida"
-value={form.institucion}
-onChange={handleChange("institucion")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-<input
-placeholder="Motivo"
-value={form.motivo}
-onChange={handleChange("motivo")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-<input
-type="date"
-value={form.fecha}
-onChange={handleChange("fecha")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900"
-/>
-<textarea
-placeholder="Observaciones"
-value={form.observaciones}
-onChange={handleChange("observaciones")}
-className="px-3 py-2 rounded border dark:border-gray-600 bg-white dark:bg-gray-900 sm:col-span-2"
-/>
-</>
-)}
-</div>
-
-<div className="flex gap-2">
-<button
-onClick={guardarPaciente}
-disabled={loading}
-className="px-5 py-2.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
->
-{loading ? "Guardando..." : "Guardar paciente"}
-</button>
-<button
-onClick={cargarPacientePorDpi}
-className="px-5 py-2.5 rounded bg-slate-600 hover:bg-slate-700 text-white"
->
-Buscar por DPI
-</button>
-</div>
-
-{msg && <p className="text-sm">{msg}</p>}
-</div>
-</div>
-);
+        </form>
+      </div>
+      {/* Basic styles - move to CSS global */}
+      <style>{`
+        .form-label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; color: #374151; }
+        .dark .form-label { color: #d1d5db; }
+        .form-input, .form-select {
+          width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.375rem; border: 1px solid #d1d5db;
+          background-color: white; color: #111827; font-size: 0.875rem; transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .dark .form-input, .dark .form-select { border-color: #4b5563; background-color: #374151; color: white; }
+        .form-input:focus, .form-select:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.4); }
+        .form-select { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; }
+        .dark .form-select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); }
+        fieldset { margin-top: 1rem; } /* Add some space between fieldsets */
+        legend { font-size: 1.125rem; } /* Larger legend text */
+      `}</style>
+    </div>
+  );
 }

@@ -20,12 +20,11 @@ export default function AdminLayout() {
         <nav className="p-3 flex-1 space-y-1">
           {[
             { to: "/admin/estadisticas", label: "Estadísticas" },
+            { to: "/admin/registro", label: "Registro paciente" },
             { to: "/admin/citas", label: "Citas" },
             { to: "/admin/conversaciones", label: "Conversaciones" },
             { to: "/admin/notas", label: "Notas clínicas" },
-            { to: "/admin/registro", label: "Registro paciente" },
             { to: "/admin/pacientes", label: "Pacientes" },
-            { to: "/admin-panel", label: "Panel general" },
           ].map((item) => (
             <NavLink
               key={item.to}
