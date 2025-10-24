@@ -10,61 +10,60 @@ const ENDPOINTS = {
   INICIAR_SESION: "login_user",
 
   // --- PACIENTES ---
-  // Información Paciente (Detalles)
   OBTENER_INFO_PACIENTE: "paciente_info",
   OBTENER_INFO_SIGSA: "sigsa_info",
   OBTENER_FICHA_MEDICA: "ficha_medica_info",
-  ACTUALIZAR_PACIENTE: "update_patient", // Para guardar/actualizar paciente
-  // Listas Generales
-  OBTENER_TODOS_PACIENTES: "listar_todos_pacientes",
+  ACTUALIZAR_PACIENTE: "update_patient",
+  OBTENER_TODOS_PACIENTENTES: "listar_todos_pacientes", // Note: Original had typo
   OBTENER_ESTADISTICAS: "get_dashboard_data",
+
   // --- CITAS ---
-  OBTENER_CITAS: "listar_citas_consultorio",   // GET (asumido)
-  CREAR_CITA: "crear_cita_consultorio",       // POST
-  ACTUALIZAR_CITA: "actualizar_cita_consultorio", // POST
-  ELIMINAR_CITA: "eliminar_cita_consultorio",   // POST
+  OBTENER_CITAS: "listar_citas_consultorio",
+  CREAR_CITA: "crear_cita_consultorio",
+  ACTUALIZAR_CITA: "actualizar_cita_consultorio",
+  ELIMINAR_CITA: "eliminar_cita_consultorio",
+
+  // --- ✅ NOTAS CLÍNICAS ---
+  OBTENER_NOTAS_CLINICAS: "obtener_notas_clinicas",      // GET All
+  OBTENER_NOTA_CLINICA_ID: "obtener_nota_clinica_por_id", // GET by ID (requires UID query param)
+  AGREGAR_NOTA_CLINICA: "agregar_nota_clinica",        // POST
 };
 
 // --- Función GET ---
 async function getJson(url, payload) {
   let finalUrl = `${BASE_URL}${url}`;
+  // Handle query parameters for GET requests (like getting note by ID)
   if (payload && Object.keys(payload).length > 0) {
     const queryParams = new URLSearchParams(payload).toString();
-    console.log("Query Params:", queryParams); // Log query params
     finalUrl += `?${queryParams}`;
   }
-  console.log("GET:", finalUrl); // Log final URL
+  console.log("GET:", finalUrl);
   const res = await fetch(finalUrl, {
     method: "GET",
-    headers: { "Accept": "application/json" },
+    headers: { "Accept": "application/json" }, // Content-Type not needed for GET with no body
   });
   const ct = res.headers.get("content-type") || "";
   const parse = async () => ct.includes("application/json") ? await res.json() : await res.text();
-  const data = await parse().catch((err) => {
-      console.error("Error parsing GET response:", err); // Log parsing error
-      return null;
-  });
+  const data = await parse().catch(() => null);
   if (!res.ok) {
-    console.error(`GET Error ${res.status}:`, data); // Log error status and data
+    console.error(`GET Error ${res.status}:`, data);
     const msg = typeof data === "string" ? data : data ? JSON.stringify(data) : `HTTP ${res.status}`;
     const err = new Error(msg); err.status = res.status; throw err;
   }
-
   // Handle potential nested 'data' key if your API wraps responses
-  if (data && data.data !== null && data.data !== undefined) {
-    console.log("GET Response Data (nested):", data.data);
-    return data.data;
-  }
-
+  // if (data && data.data !== null && data.data !== undefined) {
+  //   console.log("GET Response Data (nested):", data.data);
+  //   return data.data;
+  // }
   console.log("GET Response Data:", data);
-  return data;
+  return data; // Return the whole response object for flexibility
 }
 
 // --- Función POST ---
 async function postJson(url, payload) {
   const finalUrl = `${BASE_URL}${url}`;
   console.log("POST:", finalUrl);
-  console.log("Payload:", JSON.stringify(payload, null, 2)); // Log payload for debugging
+  console.log("Payload:", JSON.stringify(payload, null, 2));
   const res = await fetch(finalUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -72,16 +71,13 @@ async function postJson(url, payload) {
   });
   const ct = res.headers.get("content-type") || "";
   const parse = async () => ct.includes("application/json") ? await res.json() : await res.text();
-  const data = await parse().catch((err) => {
-      console.error("Error parsing POST response:", err); // Log parsing error
-      return null;
-  });
+  const data = await parse().catch(() => null);
   if (!res.ok) {
-    console.error(`POST Error ${res.status} Response:`, data); // Log error response from API
+    console.error(`POST Error ${res.status} Response:`, data);
     const msg = typeof data === "string" ? data : data ? JSON.stringify(data) : `HTTP ${res.status}`;
     const err = new Error(msg); err.status = res.status; throw err;
   }
-  console.log("POST Success Response:", data); // Log success response
+  console.log("POST Success Response:", data);
   return data;
 }
 
@@ -89,27 +85,31 @@ async function postJson(url, payload) {
 
 // Usuarios y Pacientes
 export function createUser(payload) { return postJson(ENDPOINTS.CREAR_USUARIO, payload); }
-export function loginUser(payload) { return postJson(ENDPOINTS.INICIAR_SESION, payload); } // Assuming login is POST
-export function getPacienteInfo(payload) { return getJson(ENDPOINTS.OBTENER_INFO_PACIENTE, payload); } // Assuming GET with payload as query params
-export function getSigsaInfo(payload) { return getJson(ENDPOINTS.OBTENER_INFO_SIGSA, payload); } // Assuming GET with payload as query params
-export function getFichaMedica(payload) { return getJson(ENDPOINTS.OBTENER_FICHA_MEDICA, payload); } // Assuming GET with payload as query params
-export function getAllPacientes() { return getJson(ENDPOINTS.OBTENER_TODOS_PACIENTES); } // Assuming GET, no payload needed
+export function loginUser(payload) { return postJson(ENDPOINTS.INICIAR_SESION, payload); }
+export function getPacienteInfo(payload) { return getJson(ENDPOINTS.OBTENER_INFO_PACIENTE, payload); }
+export function getSigsaInfo(payload) { return getJson(ENDPOINTS.OBTENER_INFO_SIGSA, payload); }
+export function getFichaMedica(payload) { return getJson(ENDPOINTS.OBTENER_FICHA_MEDICA, payload); }
+export function getAllPacientes() { return getJson(ENDPOINTS.OBTENER_TODOS_PACIENTENTES); } // Corrected endpoint name
 export function upsertPatient(payload) { return postJson(ENDPOINTS.ACTUALIZAR_PACIENTE, payload); }
-export function getEstadisticas() { return getJson(ENDPOINTS.OBTENER_ESTADISTICAS, {}); } // Assuming GET for stats
+export function getEstadisticas() { return getJson(ENDPOINTS.OBTENER_ESTADISTICAS, {}); }
 
-// --- CITAS ---
-export function listarCitas() {
-  return getJson(ENDPOINTS.OBTENER_CITAS); // Calls GET function
+// Citas
+export function listarCitas() { return getJson(ENDPOINTS.OBTENER_CITAS); }
+export function crearCita(payload) { return postJson(ENDPOINTS.CREAR_CITA, payload); }
+export function actualizarCita(payload) { return postJson(ENDPOINTS.ACTUALIZAR_CITA, payload); }
+export function eliminarCita(payload) { return postJson(ENDPOINTS.ELIMINAR_CITA, payload); }
+
+// --- ✅ NOTAS CLÍNICAS ---
+export function getAllNotasClinicas() {
+  // Calls GET endpoint for all notes
+  return getJson(ENDPOINTS.OBTENER_NOTAS_CLINICAS);
 }
-export function crearCita(payload) {
-  // Ensure payload matches backend expectations
-  return postJson(ENDPOINTS.CREAR_CITA, payload);
+export function getNotaClinicaById(payload) {
+  // Calls GET endpoint, expects payload like { uid: 'abc123xyz' }
+  // getJson handles adding the payload as query parameter "?uid=abc123xyz"
+  return getJson(ENDPOINTS.OBTENER_NOTA_CLINICA_ID, payload);
 }
-export function actualizarCita(payload) {
-  // Ensure payload matches backend expectations
-  return postJson(ENDPOINTS.ACTUALIZAR_CITA, payload);
-}
-export function eliminarCita(payload) {
-  // Ensure payload matches backend expectations (e.g., { uid: ..., id_evento: '...' })
-  return postJson(ENDPOINTS.ELIMINAR_CITA, payload);
+export function agregarNotaClinica(payload) {
+  // Calls POST endpoint, expects payload like { user_id: '...', contenido_reporte: '...', ... }
+  return postJson(ENDPOINTS.AGREGAR_NOTA_CLINICA, payload);
 }

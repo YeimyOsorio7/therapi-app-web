@@ -8,7 +8,7 @@ import { PrivateRoute, AdminRoute } from "./routes/Guards";
 
 // Páginas públicas
 import Inicio from "./pages/Inicio.jsx";
-import App from "./App.jsx";                  // ChatBot
+import App from "./App.jsx";                      // ChatBot (según tu código)
 import Schedule from "./pages/Schedule.jsx";
 import Layout from "./layout/Layout.jsx";
 
@@ -34,12 +34,16 @@ createRoot(document.getElementById("root")).render(
           {/* Públicas con Layout */}
           <Route element={<Layout />}>
             <Route path="/" element={<Inicio />} />
-            <Route path="/cita" element={<Schedule />} />
+
+            {/* ✅ RUTA CORREGIDA AQUÍ */}
+            <Route path="/agendar-cita" element={<Schedule />} />
+            {/* Antes era: <Route path="/cita" element={<Schedule />} /> */}
+
             <Route
               path="/chat"
               element={
                 <PrivateRoute>
-                  <App />
+                  <App /> {/* Asumo que App contiene tu ChatBot */}
                 </PrivateRoute>
               }
             />
@@ -47,66 +51,24 @@ createRoot(document.getElementById("root")).render(
 
           {/* Auth */}
           <Route path="/login" element={<AuthLogin />} />
+          {/* Asegúrate que la ruta de Registro sea '/registro' si ChatBot usa '/crear-usuario' */}
           <Route path="/registro" element={<Registro />} />
+          {/* O si usas '/crear-usuario' en ChatBot, cambia esta línea: */}
+          {/* <Route path="/crear-usuario" element={<Registro />} /> */}
+
 
           {/* Panel admin (interno) */}
           <Route
             path="/admin-panel"
-            element={
-              <AdminRoute>
-                <AdminPanel />
-              </AdminRoute>
-            }
+            element={ <AdminRoute> <AdminPanel /> </AdminRoute> }
           />
           <Route path="/admin" element={<AdminLayout />}>
-            <Route
-              path="citas"
-              element={
-                <AdminRoute>
-                  <Citas />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="conversaciones"
-              element={
-                <AdminRoute>
-                  <Conversaciones />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="notas"
-              element={
-                <AdminRoute>
-                  <NotasClinicas />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="estadisticas"
-              element={
-                <AdminRoute>
-                  <Estadisticas />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="registro"
-              element={
-                <AdminRoute>
-                  <RegistroPaciente />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="pacientes"
-              element={
-                <AdminRoute>
-                  <VerPacientes />
-                </AdminRoute>
-              }
-            />
+            <Route path="citas" element={ <AdminRoute> <Citas /> </AdminRoute> } />
+            <Route path="conversaciones" element={ <AdminRoute> <Conversaciones /> </AdminRoute> } />
+            <Route path="notas" element={ <AdminRoute> <NotasClinicas /> </AdminRoute> } />
+            <Route path="estadisticas" element={ <AdminRoute> <Estadisticas /> </AdminRoute> } />
+            <Route path="registro" element={ <AdminRoute> <RegistroPaciente /> </AdminRoute> } />
+            <Route path="pacientes" element={ <AdminRoute> <VerPacientes /> </AdminRoute> } />
           </Route>
 
           {/* Fallback */}

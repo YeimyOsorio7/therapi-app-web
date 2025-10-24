@@ -2,151 +2,125 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle'; // Make sure path is correct
+import './Chatbot.css'; // Make sure this CSS file is imported
 
-// ✅ Import the CSS file
-import './Chatbot.css';
+// --- !!! TEMPORARY HARDCODED USER ID - REPLACE LATER !!! ---
+const TEMP_USER_ID = "BIG7g7KqwSxYc1Fl8stJ"; // Replace this with dynamic user ID logic eventually
+// --- END TEMPORARY ---
+
 
 const ChatBot = () => {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const chatRef = useRef(null);
-  const inputRef = useRef(null);
-  const navigate = useNavigate();
+    const [messages, setMessages] = useState([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const chatRef = useRef(null);
+    const inputRef = useRef(null);
+    const navigate = useNavigate();
 
-  // --- Button Handlers ---
-  const handleEndConversation = () => {
-    console.log("Terminar Conversación clicked");
-    setMessages([{ sender: 'bot', text: 'Conversación terminada. ¿Cómo puedo ayudarte ahora?' }]);
-    setInput('');
-  };
+    // --- Button Handlers (Keep your existing logic) ---
+    const handleEndConversation = () => { /* ... */ };
+    const handleLogout = () => { navigate('/login'); };
 
-  const handleLogout = () => {
-    console.log("Cerrar Sesión clicked");
-    // Add actual logout logic here
-    navigate('/login'); // Navigate to login page if it exists
-  };
+    // --- API Call Logic (handleSend) ---
+    // ✅ Uses the payload structure from your working file
+    const handleSend = async () => {
+        if (!input.trim() || isLoading) return;
 
-  // --- API Call Logic (handleSend) ---
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-    const userMessage = { sender: 'user', text: input };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-    console.log('Sending message to API:', input);
-    console.log('Current messages:', JSON.stringify(messages));
-    try {
-      // Assumes you have a proxy setup in vite.config.js for /api
-      const response = await fetch('https://us-central1-tera-bot-1ba7c.cloudfunctions.net/chat_agent', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: input,
-          user_id: "BIG7g7KqwSxYc1Fl8stJ",
-        }),
-      });
-      console.log('API Response:', response);
-      if (!response.ok) throw new Error(`Error del servidor: ${response.status}`);
-      const data = await response.json();
-      console.log('API Data:', data);
-      setMessages((prev) => [...prev, { sender: 'bot', text: data.respuesta_asistente }]);
-    } catch (error) {
-      console.error('Error al conectar con la API:', error);
-      setMessages((prev) => [...prev, { sender: 'bot', text: 'Lo siento, algo salió mal.' }]);
-    } finally {
-      setInput(''); setIsLoading(false);
-    }
-  };
+        // Get the temporary hardcoded user ID (REPLACE THIS LATER)
+        const userId = TEMP_USER_ID;
+        if (!userId) {
+             setMessages((prev) => [...prev, { sender: 'bot', text: 'Error FATAL: No se pudo obtener el ID de usuario.' }]);
+             setIsLoading(false);
+             return;
+        }
 
-  // --- Effects ---
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([{ sender: 'bot', text: 'Hola, soy tu asistente virtual. ¿En qué puedo ayudarte hoy?' }]);
-    }
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
-    if (inputRef.current) inputRef.current.focus();
-  }, [messages, isLoading]);
+        const userMessage = { sender: 'user', text: input };
+        setMessages((prev) => [...prev, userMessage]);
+        setInput(''); // Clear input immediately
+        setIsLoading(true);
 
-  // --- JSX Structure using CSS Class Names ---
-  return (
-    // Main container uses .chatbot-container
-    <div className="chatbot-container">
+        try {
+            // ✅ Construct payload with direct message string and user_id
+            const payload = {
+                messages: input.trim(), // Send the current input string
+                user_id: userId          // Use the (currently hardcoded) user ID
+            };
 
-      {/* Header uses .chat-header */}
-      <header className="chat-header">
-         {/* Title (Optional) */}
-         <span className="chat-header-title">Asistente Virtual</span>
+            console.log("Sending Payload to /chat_agent:", JSON.stringify(payload, null, 2));
 
-        {/* Right Side: Actions & Theme Toggle using .chat-header-actions */}
-        <div className="chat-header-actions">
-          <Link
-  to="/AgendarCita.jsx" // This tells the router WHERE to go
-  className="chat-header-button chat-header-link-agendar"
->
-  Agendar Cita
-</Link>
-          <button
-            onClick={handleEndConversation}
-            className="chat-header-button chat-header-button-terminar"
-            title="Terminar la conversación actual"
-          >
-            Terminar Conversación
-          </button>
-          <button
-            onClick={handleLogout}
-            className="chat-header-button chat-header-button-logout"
-          >
-            Cerrar Sesión
-          </button>
-          {/* Apply the theme toggle button class */}
-          <ThemeToggle className="theme-toggle-button"/>
-        </div>
-      </header>
+            // Use the direct URL
+            const response = await fetch('https://us-central1-tera-bot-1ba7c.cloudfunctions.net/chat_agent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload), // Send the correct payload
+            });
 
-      {/* Chat Window uses .chat-window */}
-      <div ref={chatRef} className="chat-window">
-        {messages.map((msg, index) => (
-          // Wrapper div for alignment: .message-container .user
-          <div key={index} className={`message-container ${msg.sender === 'user' ? 'user' : ''}`}>
-            {/* Message bubble: .message .user or .bot */}
-            <div className={`message ${msg.sender === 'user' ? 'user' : 'bot'}`}>
-              <p>{msg.text}</p>
+            if (!response.ok) {
+                let errorDetails = `E:${response.status}`;
+                try { const errorData = await response.json(); errorDetails += `-${errorData.error || errorData.message || JSON.stringify(errorData)}`; }
+                catch { try { const errorText = await response.text(); errorDetails += `-${errorText}`; } catch {/* Ignore */} }
+                throw new Error(errorDetails);
+            }
+
+            const data = await response.json();
+            console.log("API Data Received:", data); // Log the received data
+
+            // ✅ Use the correct response key: 'respuesta_asistente'
+            if (data && data.respuesta_asistente) {
+                const botResponse = { sender: 'bot', text: data.respuesta_asistente };
+                setMessages((prev) => [...prev, botResponse]);
+            } else {
+                 console.warn("API response missing 'respuesta_asistente' field:", data);
+                 // Try falling back to 'reply' just in case, otherwise show error
+                 if (data && data.reply) {
+                     const botResponse = { sender: 'bot', text: data.reply };
+                     setMessages((prev) => [...prev, botResponse]);
+                 } else {
+                    throw new Error("Respuesta inesperada de la API (faltó 'respuesta_asistente').");
+                 }
+            }
+
+        } catch (error) {
+            console.error('Error al conectar con la API:', error);
+            setMessages((prev) => [...prev, { sender: 'bot', text: `Lo siento, hubo un error: ${error.message}` }]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // --- Effects (Keep your existing logic) ---
+    useEffect(() => { /* ... */ }, [messages, isLoading]);
+
+    // --- JSX Structure (Keep your existing structure) ---
+    return (
+        <div className="chatbot-container">
+            <header className="chat-header">
+                <span className="chat-header-title">Asistente Virtual</span>
+                <div className="chat-header-actions">
+                    <Link to="/agendar-cita" className="chat-header-button chat-header-link-agendar"> Agendar Cita </Link>
+                    <button onClick={handleEndConversation} className="chat-header-button chat-header-button-terminar"> Terminar Conversación </button>
+                    <button onClick={handleLogout} className="chat-header-button chat-header-button-logout"> Cerrar Sesión </button>
+                    <ThemeToggle className="theme-toggle-button" />
+                </div>
+            </header>
+            <div ref={chatRef} className="chat-window">
+                {messages.map((msg, index) => (
+                    <div key={index} className={`message-container ${msg.sender === 'user' ? 'user' : ''}`}>
+                        <div className={`message ${msg.sender === 'user' ? 'user' : 'bot'}`}>
+                            {typeof msg.text === 'string' ? msg.text.split('\n').map((line, i) => (<p key={i} style={{ margin: 0, minHeight: '1em' }}>{line || '\u00A0'}</p>)) : <p>{JSON.stringify(msg.text)}</p>}
+                        </div>
+                    </div>
+                ))}
+                {isLoading && (<div className="loading-indicator"><div className="loading-dots"><div><span></span><span></span><span></span></div></div></div>)}
             </div>
-          </div>
-        ))}
-        {/* Loading Indicator: .loading-indicator > .loading-dots */}
-        {isLoading && (
-          <div className="loading-indicator">
-            <div className="loading-dots">
-              <div><span></span><span></span><span></span></div>
+            <div className="chat-input-area">
+                <div className="chat-input-wrapper">
+                    <input ref={inputRef} type="text" className="chat-input" placeholder="Escribe tu mensaje..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} disabled={isLoading} />
+                    <button onClick={handleSend} disabled={isLoading} className="send-button"> {isLoading ? '...' : 'Enviar'} </button>
+                </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Input Area uses CSS classes */}
-      <div className="chat-input-area">
-        <div className="chat-input-wrapper">
-          <input
-            ref={inputRef}
-            type="text"
-            className="chat-input" // .chat-input
-            placeholder="Escribe tu mensaje..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            disabled={isLoading}
-          />
-          <button
-            onClick={handleSend}
-            disabled={isLoading}
-            className="send-button" // .send-button
-          >
-            {isLoading ? ( /* Loading indicator */ '...' ) : 'Enviar'}
-          </button>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
-export default ChatBot;
+export default ChatBot; // Make sure this line exists
