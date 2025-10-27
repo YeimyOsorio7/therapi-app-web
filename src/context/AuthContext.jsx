@@ -1,61 +1,65 @@
-// src/context/AuthContext.jsx
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const rawNew = localStorage.getItem("auth_user");
-      const rawOld = localStorage.getItem("currentUser");
-      const parsedNew = rawNew ? JSON.parse(rawNew) : null;
-      const parsedOld = rawOld ? JSON.parse(rawOld) : null;
-      return parsedNew || parsedOld || null;
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState(null);
 
+  // restaura sesión del localStorage al montar
+  useEffect(() => {
+    const raw = localStorage.getItem("auth_user");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        setUser(parsed);
+      } catch {
+        localStorage.removeItem("auth_user");
+      }
+    }
+  }, []);
+
+  // login: guardar usuario en estado y en localStorage
+  const login = (userData) => {
+    setUser(userData);
+    localStorage.setItem("auth_user", JSON.stringify(userData));
+  };
+
+  // logout: limpiar usuario
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("auth_user");
+  };
+
+  // lógica para decidir si es admin / psicóloga
   const isUserAdmin = (u) =>
     !!u &&
     (u.admin === true ||
       String(u.usuario || u.user || "").toLowerCase() === "psicologa");
 
-  useEffect(() => {
-    try {
-      if (user) {
-        const serialized = JSON.stringify(user);
-        localStorage.setItem("auth_user", serialized);
-        localStorage.setItem("currentUser", serialized); // compat con código viejo
-        localStorage.setItem("auth", "true");            // compat extra (si alguien mira esto)
-      } else {
-        localStorage.removeItem("auth_user");
-        localStorage.removeItem("currentUser");
-        localStorage.removeItem("auth");
-      }
-    } catch {}
-  }, [user]);
+  // adónde mandamos al usuario después de login
+  const routeFor = (u) =>
+    isUserAdmin(u) ? "/admin/estadisticas" : "/chat";
 
-  // puedes cambiar aquí el aterrizaje de psicóloga
-  const routeFor = (u) => (isUserAdmin(u) ? "/admin/estadisticas" : "/chat");
+  // esto es lo que usan PrivateRoute / AdminRoute
+  const isAuthenticated = !!user;
+  const isAdmin = isUserAdmin(user);
 
-  const value = useMemo(
-    () => ({
-      user,
-      isAuthenticated: !!user,
-      isAdmin: isUserAdmin(user),
-      routeFor,
-      login: (u) => setUser(u),
-      logout: () => setUser(null),
-    }),
-    [user]
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        isAuthenticated,
+        isAdmin,
+        routeFor,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  return useContext(AuthContext);
 }

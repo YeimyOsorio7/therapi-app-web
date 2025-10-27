@@ -25,7 +25,7 @@ const Header = () => {
           {/* Logo/Brand */}
           <div className="flex-shrink-0">
             <Link to="/" className="text-2xl font-bold text-sky-600 dark:text-sky-400 hover:opacity-80 transition-opacity">
-              TheraBot {/* Or your App Name */}
+              THERAPY-BOOT {/* Or your App Name */}
             </Link>
           </div>
 
