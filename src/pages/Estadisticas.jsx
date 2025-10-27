@@ -126,17 +126,20 @@ const Estadisticas = () => {
       } 
       const patients = data.patients;
       const totalPacientes = data.total || patients.length;
-      let countHombres=0, countMujeres=0, countOtroGenero=0, countNinios=0, countAdolescentes=0, countAdultos=0;
-      const municipioMap=new Map(), consultaMap=new Map(), diagnosticoMap=new Map();
-      
-      patients.forEach(p => { const sigsa = p.sigsa || {};
-      const ficha = p.ficha_medica || {}; 
-      const edadStr = sigsa.edad || ficha.edad; 
-      const edad = parseInt(edadStr, 10);
-      
-      if (!isNaN(edad)) {
-        if (sigsa.ninio_menor_15 || edad < 15) countNinios++; else if (edad >= 15 && edad < 18) countAdolescentes++; else if (sigsa.adulto || edad >= 18) countAdultos++;
-      }
+      let {countHombres, countMujeres, countOtroGenero, countNinios, countAdolescentes, countAdultos} = 0;
+      const {municipioMap, consultaMap, diagnosticoMap} = new Map();
+
+      patients.forEach(p => {
+        const sigsa = p.sigsa || {};
+        const ficha = p.ficha_medica || {};
+        const edadStr = sigsa.edad || ficha.edad;
+        const edad = parseInt(edadStr, 10);
+
+        if (!isNaN(edad)) {
+          if (sigsa.ninio_menor_15 || edad < 15) countNinios++;
+          else if (edad >= 15 && edad < 18) countAdolescentes++;
+          else if (sigsa.adulto || edad >= 18) countAdultos++;
+        }
       const genero = sigsa.genero || ficha.genero;
       if (genero === 'M' || genero === 'H') countHombres++;
       else if (genero === 'F') countMujeres++;

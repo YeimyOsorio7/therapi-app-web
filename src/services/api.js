@@ -13,6 +13,7 @@ const ENDPOINTS = {
   OBTENER_INFO_SIGSA: "sigsa_info",
   OBTENER_FICHA_MEDICA: "ficha_medica_info",
   ACTUALIZAR_PACIENTE: "update_patient",
+  OBTENER_TODOS_PACIENTES: "listar_todos_pacientes",
 
   // --- Citas ---
   OBTENER_CITAS: "listar_citas_consultorio",
@@ -137,7 +138,7 @@ export function getAllNotasClinicas() {
 }
 
 export function getAllPacientes() {
-  return getJson(ENDPOINTS.OBTENER_INFO_PACIENTE);
+  return getJson(ENDPOINTS.OBTENER_TODOS_PACIENTES);
 }
 
 export function getNotaClinicaById(payload) {
