@@ -136,6 +136,10 @@ export function getAllNotasClinicas() {
   return getJson(ENDPOINTS.OBTENER_NOTAS_CLINICAS);
 }
 
+export function getAllPacientes() {
+  return getJson(ENDPOINTS.OBTENER_INFO_PACIENTE);
+}
+
 export function getNotaClinicaById(payload) {
   // payload: { uid: 'idNota' }
   return getJson(ENDPOINTS.OBTENER_NOTA_CLINICA_ID, payload);

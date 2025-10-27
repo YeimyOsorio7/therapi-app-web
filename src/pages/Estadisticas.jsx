@@ -19,7 +19,7 @@ const MULTI_COLORS = ['#3b82f6', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#e
 const defaultStats = { /* ... */ };
 
 // --- Helper: Render Pie Label (no change) ---
-const renderCustomLabel = ({ /* ... */ });
+// const renderCustomLabel = ({ /* ... */ });
 
 // --- Helper: Generate Word Document ---
 const generateDocxReport = (stats) => {
@@ -119,8 +119,59 @@ const Estadisticas = () => {
 
   // Fetch and Calculate Stats function (no changes needed)
   const fetchAndCalculateStats = useCallback(async () => { /* ... (same as before) ... */
-    setLoading(true); setStats(defaultStats); try { const data = await getAllPacientes(); if (!data || !Array.isArray(data.patients)) { throw new Error("Formato de datos incorrecto."); } const patients = data.patients; const totalPacientes = data.total || patients.length; let countHombres=0, countMujeres=0, countOtroGenero=0, countNinios=0, countAdolescentes=0, countAdultos=0; const municipioMap=new Map(), consultaMap=new Map(), diagnosticoMap=new Map(); patients.forEach(p => { const sigsa = p.sigsa || {}; const ficha = p.ficha_medica || {}; const edadStr = sigsa.edad || ficha.edad; const edad = parseInt(edadStr, 10); if (!isNaN(edad)) { if (sigsa.ninio_menor_15 || edad < 15) countNinios++; else if (edad >= 15 && edad < 18) countAdolescentes++; else if (sigsa.adulto || edad >= 18) countAdultos++; } const genero = sigsa.genero || ficha.genero; if (genero === 'M' || genero === 'H') countHombres++; else if (genero === 'F') countMujeres++; else if (genero) countOtroGenero++; const municipio = sigsa.municipio || ficha.municipio; if (municipio && municipio.toLowerCase() !== 'null') { municipioMap.set(municipio, (municipioMap.get(municipio) || 0) + 1); } const consulta = sigsa.consulta || ficha.tipo_consulta; if (consulta && consulta.toLowerCase() !== 'null') { if (consulta.toLowerCase().includes('primera')) { consultaMap.set('Primera Vez', (consultaMap.get('Primera Vez') || 0) + 1); } else if (consulta.toLowerCase().includes('control') || consulta.toLowerCase().includes('reconsulta')) { consultaMap.set('Control/Reconsulta', (consultaMap.get('Control/Reconsulta') || 0) + 1); } } const diagnostico = sigsa.diagnostico || ficha.patologia; if (diagnostico && diagnostico.toLowerCase() !== 'null') { diagnosticoMap.set(diagnostico, (diagnosticoMap.get(diagnostico) || 0) + 1); } }); const generoData = [{ name: 'Hombres', value: countHombres }, { name: 'Mujeres', value: countMujeres },]; if (countOtroGenero > 0) generoData.push({ name: 'Otro/Desc.', value: countOtroGenero }); const edadGroupData = [{ name: 'Niños (<15)', value: countNinios }, { name: 'Adolescentes (15-17)', value: countAdolescentes }, { name: 'Adultos (18+)', value: countAdultos },]; const municipioData = Array.from(municipioMap, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); const consultaTypeData = Array.from(consultaMap, ([name, value]) => ({ name, value })); const diagnosticoData = Array.from(diagnosticoMap, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); setStats({ totalPacientes, countHombres, countMujeres, countNinios, generoData: generoData.filter(i=>i.value>0), edadGroupData, municipioData, consultaTypeData: consultaTypeData.filter(i=>i.value>0), diagnosticoData, error: null, }); } catch (error) { console.error('Error:', error); setStats(prev => ({ ...prev, error: error.message })); } finally { setLoading(false); }
-   }, []);
+    setLoading(true); setStats(defaultStats); try {
+      const data = await getAllPacientes();
+      if (!data || !Array.isArray(data.patients)) {
+        throw new Error("Formato de datos incorrecto.");
+      } 
+      const patients = data.patients;
+      const totalPacientes = data.total || patients.length;
+      let countHombres=0, countMujeres=0, countOtroGenero=0, countNinios=0, countAdolescentes=0, countAdultos=0;
+      const municipioMap=new Map(), consultaMap=new Map(), diagnosticoMap=new Map();
+      
+      patients.forEach(p => { const sigsa = p.sigsa || {};
+      const ficha = p.ficha_medica || {}; 
+      const edadStr = sigsa.edad || ficha.edad; 
+      const edad = parseInt(edadStr, 10);
+      
+      if (!isNaN(edad)) {
+        if (sigsa.ninio_menor_15 || edad < 15) countNinios++; else if (edad >= 15 && edad < 18) countAdolescentes++; else if (sigsa.adulto || edad >= 18) countAdultos++;
+      }
+      const genero = sigsa.genero || ficha.genero;
+      if (genero === 'M' || genero === 'H') countHombres++;
+      else if (genero === 'F') countMujeres++;
+      else if (genero) countOtroGenero++;
+      const municipio = sigsa.municipio || ficha.municipio;
+      if (municipio && municipio.toLowerCase() !== 'null') {
+        municipioMap.set(municipio, (municipioMap.get(municipio) || 0) + 1);
+      }
+      const consulta = sigsa.consulta || ficha.tipo_consulta;
+      if (consulta && consulta.toLowerCase() !== 'null') {
+        if (consulta.toLowerCase().includes('primera')) {
+          consultaMap.set('Primera Vez', (consultaMap.get('Primera Vez') || 0) + 1);
+        } else if (consulta.toLowerCase().includes('control') || consulta.toLowerCase().includes('reconsulta')) {
+          consultaMap.set('Control/Reconsulta', (consultaMap.get('Control/Reconsulta') || 0) + 1);
+        }
+      }
+      const diagnostico = sigsa.diagnostico || ficha.patologia;
+      if (diagnostico && diagnostico.toLowerCase() !== 'null') {
+        diagnosticoMap.set(diagnostico, (diagnosticoMap.get(diagnostico) || 0) + 1);
+      }
+    });
+    const generoData = [{ name: 'Hombres', value: countHombres }, { name: 'Mujeres', value: countMujeres },];
+    if (countOtroGenero > 0) generoData.push({ name: 'Otro/Desc.', value: countOtroGenero });
+    const edadGroupData = [{ name: 'Niños (<15)', value: countNinios }, { name: 'Adolescentes (15-17)', value: countAdolescentes }, { name: 'Adultos (18+)', value: countAdultos },];
+    const municipioData = Array.from(municipioMap, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    const consultaTypeData = Array.from(consultaMap, ([name, value]) => ({ name, value }));
+    const diagnosticoData = Array.from(diagnosticoMap, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    setStats({ totalPacientes, countHombres, countMujeres, countNinios, generoData: generoData.filter(i=>i.value>0), edadGroupData, municipioData, consultaTypeData: consultaTypeData.filter(i=>i.value>0), diagnosticoData, error: null, });
+  } catch (error) {
+    console.error('Error:', error);
+    setStats(prev => ({ ...prev, error: error.message }));
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchAndCalculateStats();

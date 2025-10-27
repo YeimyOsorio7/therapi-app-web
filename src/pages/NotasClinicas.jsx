@@ -74,18 +74,6 @@ export default function NotasClinicas() {
   const [pacienteSeleccionadoNombre, setPacienteSeleccionadoNombre] =
     useState("");
 
-  // ====== estado notas clínicas ======
-  // cada nota:
-  // {
-  //   note_uid,
-  //   user_id,
-  //   paciente_nombre,
-  //   fecha_generacion,
-  //   tipo_reporte,
-  //   transtorno_posible,
-  //   contenido_reporte,
-  //   recomendaciones_reporte,
-  // }
   const [notas, setNotas] = useState([]);
   const [loadingNotas, setLoadingNotas] = useState(false);
   const [errorNotas, setErrorNotas] = useState("");
@@ -109,14 +97,6 @@ export default function NotasClinicas() {
       try {
         const resp = await getAllPacientes();
 
-        // AJUSTA A TU API AQUÍ:
-        // según tu tabla:
-        //   N.º Historia Clínica => es nuestro UID paciente
-        //   Nombres y apellidos => nombrePaciente
-        //
-        // voy a mapear suponiendo que cada objeto viene así:
-        // { historia_clinica: "1213...", nombres_apellidos: "Yeimy Maribel", ... }
-        // si tus llaves reales cambian, cámbialas aquí 👇
         const lista = Array.isArray(resp)
           ? resp.map((p) => ({
               uidPaciente:
