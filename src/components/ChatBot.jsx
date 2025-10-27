@@ -66,6 +66,56 @@ function maybeExtractUserFacts(userMsgText, currentProfile) {
   return updated;
 }
 
+// Función para limpiar el historial del localStorage
+function clearUserHistory(userId) {
+  try {
+    localStorage.removeItem(`chat_history:${userId}`);
+    localStorage.removeItem(`chat_profile:${userId}`);
+    console.log('Historial de conversación eliminado');
+  } catch (error) {
+    console.error('Error al limpiar historial:', error);
+  }
+}
+
+// Función para enviar reporte de conversación
+async function sendConversationReport(userId, options = {}) {
+  const { useBeacon = false, keepalive = false } = options;
+  
+  try {
+    if (useBeacon) {
+      // Usar sendBeacon para envíos al cerrar la página (más confiable)
+      const blob = new Blob(
+        [JSON.stringify({ user_id: userId })],
+        { type: 'application/json' }
+      );
+      navigator.sendBeacon(
+        'https://us-central1-tera-bot-1ba7c.cloudfunctions.net/agente_generador_reporte',
+        blob
+      );
+      console.log('Reporte enviado con sendBeacon');
+    } else {
+      // Usar fetch normal o con keepalive
+      const response = await fetch(
+        'https://us-central1-tera-bot-1ba7c.cloudfunctions.net/agente_generador_reporte',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId }),
+          ...(keepalive && { keepalive: true }),
+        }
+      );
+      
+      if (!response.ok) {
+        console.error('Error al generar reporte:', response.status);
+      } else {
+        console.log('Reporte generado exitosamente');
+      }
+    }
+  } catch (err) {
+    console.error('Error al enviar reporte:', err);
+  }
+}
+
 const ChatBot = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -77,6 +127,7 @@ const ChatBot = () => {
   const [profile, setProfile] = useState({});
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationEnded, setConversationEnded] = useState(false);
 
   const chatRef = useRef(null);
   const inputRef = useRef(null);
@@ -104,15 +155,50 @@ const ChatBot = () => {
     }
   }, [messages, isLoading]);
 
-  // terminar conversación: sólo agrega un mensaje "bot"
-  const handleEndConversation = () => {
+  // Limpiar y enviar reporte cuando el usuario salga de la página sin usar "Terminar Conversación"
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!conversationEnded && userId && messages.length > 0) {
+        // Enviar reporte al cerrar la página usando sendBeacon (más confiable)
+        sendConversationReport(userId, { useBeacon: true });
+        clearUserHistory(userId);
+      }
+    };
+
+    // Agregar listener para cuando se cierre la página/pestaña
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Limpiar listener al desmontar el componente
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      
+      // También ejecutar al desmontar (navegar a otra página)
+      if (!conversationEnded && userId && messages.length > 0) {
+        sendConversationReport(userId, { keepalive: true });
+        clearUserHistory(userId);
+      }
+    };
+  }, [userId, messages.length, conversationEnded]);
+
+  // terminar conversación: genera reporte en segundo plano y muestra mensaje
+  const handleEndConversation = async () => {
+    if (!userId) return;
+    
+    // Marcar que la conversación terminó correctamente
+    setConversationEnded(true);
+    
+    // Agregar mensaje inmediatamente sin esperar
     setMessages(prev => [
       ...prev,
       {
         sender: 'bot',
-        text: 'La conversación ha finalizado por ahora. Cuando quieras seguir, aquí estaré 💖',
+        text: 'Gracias por compartir conmigo. Ha sido un placer acompañarte en esta conversación 💖\n\nTe recomiendo agendar una cita con la doctora para continuar con tu proceso. Puedes hacerlo desde el botón "Agendar Cita" en la parte superior.',
       },
     ]);
+
+    // Enviar reporte en segundo plano y limpiar historial después
+    await sendConversationReport(userId);
+    clearUserHistory(userId);
   };
 
   // cerrar sesión real

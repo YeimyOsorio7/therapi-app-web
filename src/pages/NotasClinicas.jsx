@@ -212,7 +212,6 @@ export default function NotasClinicas() {
             const pacienteUid = raw.usuario_info?.uid || raw.uid || raw.user_id || "—";
             const nombrePaciente =
               raw.usuario_info?.usuario || 
-              mapPacientesByUid[pacienteUid] || 
               pacienteUid || 
               "—";
 
@@ -244,7 +243,7 @@ export default function NotasClinicas() {
         setModalLoading(false);
       }
     },
-    [notas, mapPacientesByUid]
+    [notas]
   );
 
   const cerrarModal = () => {

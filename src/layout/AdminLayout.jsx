@@ -14,7 +14,7 @@ export default function AdminLayout() {
             Panel Psicóloga
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {user?.usuario || "—"}
+            {user?.usuario || "Licda. Maura Violeta"}
           </p>
         </div>
         <nav className="p-3 flex-1 space-y-1">
@@ -22,8 +22,7 @@ export default function AdminLayout() {
             { to: "/admin/estadisticas", label: "Estadísticas" },
             { to: "/admin/registro", label: "Registro paciente" },
             { to: "/admin/citas", label: "Citas" },
-            { to: "/admin/conversaciones", label: "Conversaciones" },
-            { to: "/admin/notas", label: "Notas clínicas" },
+            { to: "/admin/notas", label: "Reportes Clínicos" },
             { to: "/admin/pacientes", label: "Pacientes" },
           ].map((item) => (
             <NavLink

@@ -15,6 +15,7 @@ import Registro from "./pages/Registro.jsx";
 // 🔒 Rutas privadas para usuario autenticado
 import Chat from "./components/ChatBot.jsx";
 import Schedule from "./pages/Schedule.jsx";
+import AgendarCita from "./pages/AgendarCita.jsx";
 import Recursos from "./pages/Recursos.jsx";
 
 // 🔒 Rutas privadas para admin/psicóloga
@@ -51,6 +52,15 @@ export default function App() {
             element={
               <PrivateRoute>
                 <Schedule />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/agendar-cita"
+            element={
+              <PrivateRoute>
+                <AgendarCita />
               </PrivateRoute>
             }
           />

@@ -207,9 +207,31 @@ const Estadisticas = () => {
   const pieConsultaData = stats.consultaTypeData;
   const barDiagnosticoData = stats.diagnosticoData;
 
-  // --- Loading and Error States (no change) ---
-  if (loading) { /* ... */ return <div className="loading-placeholder">Calculando estadísticas...</div>; }
-  if (stats.error) { /* ... */ return <div className="error-placeholder">Error: {stats.error}</div>; }
+  // --- Loading and Error States ---
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 dark:border-indigo-400 mb-4"></div>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Calculando estadísticas...</h2>
+          <p className="text-gray-600 dark:text-gray-400">Analizando datos de pacientes</p>
+        </div>
+      </div>
+    );
+  }
+  if (stats.error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
+        <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+          <svg className="mx-auto h-12 w-12 text-red-500 dark:text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h2 className="text-xl font-semibold text-red-800 dark:text-red-200 mb-2">Error al cargar estadísticas</h2>
+          <p className="text-red-600 dark:text-red-300">{stats.error}</p>
+        </div>
+      </div>
+    );
+  }
 
   // --- Render Component ---
   return (

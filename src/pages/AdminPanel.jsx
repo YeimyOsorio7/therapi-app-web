@@ -38,14 +38,9 @@ const AdminPanel = () => {
             <span>🗓️</span> Citas
           </NavLink>
 
-          <NavLink to="/admin/conversaciones"
-                   className={({isActive}) => `${linkBase} ${isActive ? linkActive : ""}`}>
-            <span>💬</span> Conversaciones
-          </NavLink>
-
           <NavLink to="/admin/notas"
                    className={({isActive}) => `${linkBase} ${isActive ? linkActive : ""}`}>
-            <span>📝</span> Notas clínicas
+            <span>📝</span> Reportes Clínicos
           </NavLink>
 
           <NavLink to="/admin/estadisticas"
