@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import Header from '../components/Header'; // ✅ 1. IMPORTA EL ENCABEZADO (Ajusta la ruta si es necesario)
+import Header from '../components/Header';
+import { loginUser } from "../services/api"; // 👈 IMPORTAR llamada real a backend
 
 export default function AuthLogin() {
   const navigate = useNavigate();
   const { login, routeFor } = useAuth();
 
-  // --- Banner de éxito ---
+  // --- Banner de éxito post-registro ---
   const location = useLocation();
-  const [justRegistered, setJustRegistered] = useState(
-    Boolean(location.state?.justRegistered)
-  );
+  const [justRegistered, setJustRegistered] = useState(Boolean(location.state?.justRegistered));
 
   useEffect(() => {
     if (justRegistered) {
@@ -23,65 +22,86 @@ export default function AuthLogin() {
     }
   }, [justRegistered, navigate, location.pathname]);
 
-  // --- Lógica de Login ---
+  // --- Estado del login ---
   const [form, setForm] = useState({ user: "", password: "" });
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // Añadido estado de carga
+  const [loading, setLoading] = useState(false);
 
+  // Manejar cambios en inputs
   const handleChange = (e) => {
     if (error) setError("");
     setForm((s) => ({ ...s, [e.target.name]: e.target.value }));
   };
 
-  const handleLogin = (e) => {
+  // Enviar login REAL al backend
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setError(""); // Limpia error previo
+    setError("");
+
     if (!form.user.trim() || !form.password.trim()) {
       setError("❌ Por favor, completa todos los campos");
       return;
     }
 
-    setLoading(true); // Inicia carga
+    setLoading(true);
+    try {
+      // 1. Llamamos al backend
+      const resp = await loginUser({
+        usuario: form.user.trim(),
+        contrasenia: form.password.trim(),
+      });
 
-    // Simula una llamada a API (o llama a tu función real de login)
-    // Reemplaza esto con tu llamada a `loginUser` si la tienes en api.js
-    setTimeout(() => {
-        try {
-          // Regla: si el usuario es 'psicologa' => admin
-          const isAdmin = form.user.trim().toLowerCase() === "psicologa";
-          // Simula creación de payload de usuario (ajusta según tu AuthContext)
-          const userPayload = {
-              id: isAdmin ? 'admin-123' : `user-${Date.now()}`, // Simula un ID
-              usuario: form.user.trim(),
-              admin: isAdmin
-          };
+      // Esperamos algo tipo:
+      // { success:true, user:{ user_id:'...', usuario:'...', admin:false, re_paciente:'...', fecha_creacion:'...' } }
+      if (!resp || resp.success === false) {
+        const msg = resp?.error || "Credenciales incorrectas";
+        throw new Error(msg);
+      }
 
-          // Guardamos en el contexto
-          login(userPayload);
+      // Si el backend devuelve { success: true, user: {...} }
+      // usamos resp.user; si devuelve directo {...}, usamos resp.
+      const backendUser = resp.user || resp;
 
-          // Redirigimos según rol
-          navigate(routeFor(userPayload), { replace: true });
+      // Validar que venga el identificador real
+      // Este es EL ID que luego usaremos como user_id en NotasClinicas
+      const finalUserObject = {
+        id: backendUser.user_id || backendUser.id || backendUser.uid, // <-- clave interna única para ese paciente
+        user_id: backendUser.user_id || backendUser.id || backendUser.uid, // redundante, para que sea explícito
+        usuario: backendUser.usuario,
+        admin: !!backendUser.admin,
+        re_paciente: backendUser.re_paciente || null,
+        fecha_creacion: backendUser.fecha_creacion || null,
+      };
 
-        } catch (loginError) {
-             console.error("Login failed:", loginError);
-             setError(`❌ Error al iniciar sesión: ${loginError.message || 'Intenta de nuevo.'}`);
-             setLoading(false); // Detiene carga en error
-        }
-      // No necesitamos setLoading(false) en caso de éxito porque navegamos fuera
-    }, 500); // Simula retraso de red
+      if (!finalUserObject.user_id) {
+        // Si NO viene user_id del backend, no podemos continuar porque luego NotasClinicas fallará
+        throw new Error("No se recibió user_id del servidor.");
+      }
+
+      // 2. Guardamos al usuario en el contexto global
+      login(finalUserObject);
+
+      // 3. Redirigir según rol
+      // routeFor() ya decide:
+      //   admin / psicologa -> "/admin/estadisticas"
+      //   normal -> "/chat"
+      navigate(routeFor(finalUserObject), { replace: true });
+
+    } catch (loginError) {
+      console.error("Login failed:", loginError);
+      setError(`❌ Error al iniciar sesión: ${loginError.message || "Intente de nuevo."}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    // Contenedor principal de la página, ajustado para header fijo
-    <div className="min-h-screen bg-gradient-to-br from-sky-100 to-teal-200 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center"> {/* Cambiado a flex-col */}
+    <div className="min-h-screen bg-gradient-to-br from-sky-100 to-teal-200 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center">
 
-      {/* ✅ 2. RENDERIZA EL ENCABEZADO AQUÍ */}
       <Header />
 
-      {/* Contenedor para centrar el formulario (con padding superior) */}
-      <div className="flex-grow w-full flex items-center justify-center p-4 pt-24 md:pt-20"> {/* Aumentado pt para header */}
+      <div className="flex-grow w-full flex items-center justify-center p-4 pt-24 md:pt-20">
         <div className="w-full max-w-md">
-          {/* Aviso de éxito */}
           {justRegistered && (
             <div className="mb-4 rounded-xl border border-green-300 bg-green-50 dark:bg-green-900/30 px-4 py-3 text-green-700 dark:text-green-300 shadow-sm flex items-center gap-2">
               <span>✅</span>
@@ -99,45 +119,54 @@ export default function AuthLogin() {
 
             <div className="space-y-4">
               <div>
-                <label htmlFor="user-login" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="user-login"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Usuario
                 </label>
                 <input
-                  id="user-login" // ID único
+                  id="user-login"
                   name="user"
                   type="text"
                   placeholder="Ingresa tu usuario"
                   value={form.user}
                   onChange={handleChange}
                   className={`w-full px-4 py-2 rounded-lg border transition-all duration-200
-                    ${error && !form.user.trim() ? "border-red-500 focus:border-red-500 focus:ring-red-200" : "border-gray-300 dark:border-gray-600 focus:border-sky-500 focus:ring-sky-200"}
+                    ${error && !form.user.trim()
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                      : "border-gray-300 dark:border-gray-600 focus:border-sky-500 focus:ring-sky-200"}
                     bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-opacity-50`}
                   required
-                  aria-invalid={!!error && !form.user.trim()} // Indica error si aplica
+                  aria-invalid={!!error && !form.user.trim()}
                 />
               </div>
 
               <div>
-                <label htmlFor="password-login" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="password-login"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Contraseña
                 </label>
                 <input
-                  id="password-login" // ID único
+                  id="password-login"
                   name="password"
                   type="password"
                   placeholder="Ingresa tu contraseña"
                   value={form.password}
                   onChange={handleChange}
                   className={`w-full px-4 py-2 rounded-lg border transition-all duration-200
-                    ${error && !form.password.trim() ? "border-red-500 focus:border-red-500 focus:ring-red-200" : "border-gray-300 dark:border-gray-600 focus:border-sky-500 focus:ring-sky-200"}
+                    ${error && !form.password.trim()
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                      : "border-gray-300 dark:border-gray-600 focus:border-sky-500 focus:ring-sky-200"}
                     bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-opacity-50`}
                   required
-                   aria-invalid={!!error && !form.password.trim()} // Indica error si aplica
+                  aria-invalid={!!error && !form.password.trim()}
                 />
               </div>
             </div>
 
-            {/* Mensaje de Error Estilizado */}
             {error && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg p-3 mt-2">
                 <p className="text-red-600 dark:text-red-400 text-sm text-center font-medium">
@@ -152,7 +181,7 @@ export default function AuthLogin() {
                        text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200
                        transform hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2
                        focus:ring-sky-500 focus:ring-opacity-50"
-              disabled={loading || !form.user.trim() || !form.password.trim()} // Deshabilita si está cargando o campos vacíos
+              disabled={loading || !form.user.trim() || !form.password.trim()}
             >
               {loading ? "Iniciando..." : "Iniciar sesión"}
             </button>
@@ -160,7 +189,6 @@ export default function AuthLogin() {
             <div className="text-center text-sm text-gray-600 dark:text-gray-400">
               ¿No tienes cuenta?{" "}
               <Link
-                // Asegúrate que la ruta sea '/registro' si así está en tu router (main.jsx)
                 to="/registro"
                 className="font-semibold text-indigo-600 dark:text-indigo-300 hover:underline"
               >
@@ -170,10 +198,10 @@ export default function AuthLogin() {
           </form>
         </div>
       </div>
-       {/* Estilos básicos (mover a CSS global) */}
-       <style>{`
-          /* Añade estilos para form-label, form-input si no usas Tailwind */
-       `}</style>
+
+      <style>{`
+        /* estilos extra si quieres */
+      `}</style>
     </div>
   );
 }
