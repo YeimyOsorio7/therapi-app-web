@@ -26,6 +26,9 @@ import Estadisticas from "./pages/Estadisticas.jsx";
 import RegistroPaciente from "./pages/RegistroPaciente.jsx";
 import VerPacientes from "./pages/VerPacientes.jsx";
 
+// ✅ NUEVO: importar Notas Evolutivas
+import NotasEvolutivas from "./pages/NotasEvolutivas.jsx";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -121,6 +124,16 @@ export default function App() {
               element={
                 <AdminRoute>
                   <VerPacientes />
+                </AdminRoute>
+              }
+            />
+
+            {/* ✅ NUEVO: Notas Evolutivas (solo admin) */}
+            <Route
+              path="notas-evolutivas"
+              element={
+                <AdminRoute>
+                  <NotasEvolutivas />
                 </AdminRoute>
               }
             />

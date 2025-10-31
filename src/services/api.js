@@ -25,6 +25,12 @@ const ENDPOINTS = {
   OBTENER_NOTAS_CLINICAS: "obtener_notas_clinicas",
   OBTENER_NOTA_CLINICA_ID: "obtener_nota_clinica_por_id",
   AGREGAR_NOTA_CLINICA: "agregar_nota_clinica",
+
+  // --- Notas evolutivas (NUEVO) ---
+  CREAR_NOTA_EVOLUTIVA: "crear_nota_evolutiva",
+  OBTENER_NOTAS_EVOLUTIVAS: "obtener_notas_evolutivas",
+  OBTENER_NOTA_EVOLUTIVA_ID: "obtener_nota_evolutiva_por_id",
+  ACTUALIZAR_NOTA_EVOLUTIVA: "actualizar_nota_evolutiva",
 };
 
 // ==================== MÉTODOS BASE ====================
@@ -157,4 +163,61 @@ export function agregarNotaClinica(payload) {
   //   tipo_reporte
   // }
   return postJson(ENDPOINTS.AGREGAR_NOTA_CLINICA, payload);
+}
+
+// --- Notas evolutivas (NUEVO) ---
+export function crearNotaEvolutiva(payload) {
+  // payload:
+  // {
+  //   uid: "",
+  //   no_registro: "",
+  //   no_expediente: "",
+  //   nombre_completo: "",
+  //   fecha: "YYYY-MM-DD",
+  //   contenido_nota: "",
+  //   firma_psicologo: "Licda. Maura Violeta"
+  // }
+  return postJson(ENDPOINTS.CREAR_NOTA_EVOLUTIVA, payload);
+}
+
+export function obtenerNotasEvolutivas(params) {
+  // params opcional: { uid: "..." }  -> GET /obtener_notas_evolutivas?uid=...
+  // si no mandas params -> GET /obtener_notas_evolutivas (todas)
+  return getJson(ENDPOINTS.OBTENER_NOTAS_EVOLUTIVAS, params || {});
+}
+
+export function obtenerNotaEvolutivaPorId(params) {
+  // params: { nota_id: "..." } -> GET /obtener_nota_evolutiva_por_id?nota_id=...
+  return getJson(ENDPOINTS.OBTENER_NOTA_EVOLUTIVA_ID, params);
+}
+
+export async function actualizarNotaEvolutiva(payload) {
+  // payload:
+  // {
+  //   nota_id: "",
+  //   contenido_nota: "",
+  //   firma_psicologo: "",
+  //   fecha: "YYYY-MM-DD"
+  // }
+  const finalUrl = `${BASE_URL}${ENDPOINTS.ACTUALIZAR_NOTA_EVOLUTIVA}`;
+  const res = await fetch(finalUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const contentType = res.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await res.json().catch(() => null)
+    : await res.text().catch(() => null);
+
+  if (!res.ok) {
+    const msg =
+      typeof data === "string" ? data : data?.error || `Error ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
 }
