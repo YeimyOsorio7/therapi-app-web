@@ -244,10 +244,30 @@ export default function RegistroPaciente() {
                 <label htmlFor="estado_civil" className="form-label">Estado Civil</label>
                 <input id="estado_civil" name="estado_civil" placeholder="Ej. Soltero" value={form.estado_civil} onChange={handleChange("estado_civil")} className="form-input"/>
               </div>
+
+              {/* === CAMBIO 1: Municipio como SELECT === */}
               <div>
                 <label htmlFor="municipio" className="form-label">Municipio</label>
-                <input id="municipio" name="municipio" placeholder="Municipio" value={form.municipio} onChange={handleChange("municipio")} className="form-input"/>
+                <select
+                  id="municipio"
+                  name="municipio"
+                  value={form.municipio}
+                  onChange={handleChange("municipio")}
+                  className="form-select"
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="Totonicapán (cabecera)">Totonicapán (cabecera)</option>
+                  <option value="Momostenango">Momostenango</option>
+                  <option value="San Andrés Xecul">San Andrés Xecul</option>
+                  <option value="San Bartolo Aguas Calientes">San Bartolo Aguas Calientes</option>
+                  <option value="San Cristóbal Totonicapán">San Cristóbal Totonicapán</option>
+                  <option value="San Francisco El Alto">San Francisco El Alto</option>
+                  <option value="Santa Lucía La Reforma">Santa Lucía La Reforma</option>
+                  <option value="Santa María Chiquimula">Santa María Chiquimula</option>
+                </select>
               </div>
+              {/* === FIN CAMBIO 1 === */}
+
               <div>
                 <label htmlFor="aldea" className="form-label">Aldea / Dirección</label>
                 <input id="aldea" name="aldea" placeholder="Aldea o dirección" value={form.aldea} onChange={handleChange("aldea")} className="form-input"/>
@@ -308,10 +328,39 @@ export default function RegistroPaciente() {
                         <option value="Reconsulta">Reconsulta</option>
                     </select>
                  </div>
+                 {/* === CAMBIO 2: Diagnóstico (SIGSA) como SELECT === */}
                  <div>
                     <label htmlFor="diagnostico" className="form-label">Diagnóstico (SIGSA)</label>
-                    <input id="diagnostico" name="diagnostico" placeholder="Diagnóstico principal" value={form.diagnostico} onChange={handleChange("diagnostico")} className="form-input"/>
+                    <select
+                      id="diagnostico"
+                      name="diagnostico"
+                      value={form.diagnostico}
+                      onChange={handleChange("diagnostico")}
+                      className="form-select"
+                    >
+                      <option value="">Seleccionar...</option>
+                      <option value="Problemas con Alcoholismo">Problemas con Alcoholismo</option>
+                      <option value="Estrés Laboral">Estrés Laboral</option>
+                      <option value="Problemas de Lenguaje">Problemas de Lenguaje</option>
+                      <option value="Problemas de Desarrollo">Problemas de Desarrollo</option>
+                      <option value="Problemas Conyugales">Problemas Conyugales</option>
+                      <option value="Trastorno de la ansiedad">Trastorno de la ansiedad</option>
+                      <option value="Problemas de Adaptacion">Problemas de Adaptacion</option>
+                      <option value="Depresión">Depresión</option>
+                      <option value="Ansiedad Generalizada">Ansiedad Generalizada</option>
+                      <option value="Problemas Somatoommorfos">Problemas Somatoommorfos</option>
+                      <option value="Tristeza Leve">Tristeza Leve</option>
+                      <option value="Otros Prob. que Generan Estrés en la fam">Otros Prob. que Generan Estrés en la fam</option>
+                      <option value="Asesoria Anticoncepcion">Asesoria Anticoncepcion</option>
+                      <option value="Falta de Alimentos Adecuados">Falta de Alimentos Adecuados</option>
+                      <option value="Fobia">Fobia</option>
+                      <option value="Apoyo Psicologico">Apoyo Psicologico</option>
+                      <option value="Ajuste de Vida">Ajuste de Vida</option>
+                      <option value="Duelo">Duelo</option>
+                      <option value="Trastorno del Sueño">Trastorno del Sueño</option>
+                    </select>
                  </div>
+                 {/* === FIN CAMBIO 2 === */}
                  <div>
                     <label htmlFor="cie_10" className="form-label">CIE-10 (SIGSA)</label>
                     <input id="cie_10" name="cie_10" placeholder="Ej. F41.1" value={form.cie_10} onChange={handleChange("cie_10")} className="form-input"/>

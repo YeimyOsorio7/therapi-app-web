@@ -1,3 +1,4 @@
+// src/components/ThemeToggle.jsx
 import { useEffect, useState } from "react";
 
 const ThemeToggle = () => {
@@ -26,13 +27,11 @@ const ThemeToggle = () => {
   return (
     <button
       onClick={toggleTheme}
-      className="fixed top-4 right-4 z-50 rounded-full px-3 py-2 shadow-lg transition
-                 bg-indigo-500 hover:bg-indigo-600 text-white
-                 dark:bg-emerald-600 dark:hover:bg-emerald-700"
+      className="w-full mt-2 px-3 py-2 rounded-md text-sm font-medium bg-indigo-500 hover:bg-indigo-600 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700 transition"
       aria-label="Cambiar tema claro/oscuro"
       title="Cambiar tema"
     >
-      {dark ? "☀️" : "🌙"}
+      {dark ? "☀️ Modo claro" : "🌙 Modo oscuro"}
     </button>
   );
 };

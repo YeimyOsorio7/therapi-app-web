@@ -25,6 +25,12 @@ const ENDPOINTS = {
   OBTENER_NOTAS_CLINICAS: "obtener_notas_clinicas",
   OBTENER_NOTA_CLINICA_ID: "obtener_nota_clinica_por_id",
   AGREGAR_NOTA_CLINICA: "agregar_nota_clinica",
+
+  // --- Notas evolutivas (NUEVO) ---
+  CREAR_NOTA_EVOLUTIVA: "crear_nota_evolutiva",
+  OBTENER_NOTAS_EVOLUTIVAS: "obtener_notas_evolutivas",
+  OBTENER_NOTA_EVOLUTIVA_ID: "obtener_nota_evolutiva_por_id",
+  ACTUALIZAR_NOTA_EVOLUTIVA: "actualizar_nota_evolutiva",
 };
 
 // ==================== MÉTODOS BASE ====================
@@ -157,4 +163,55 @@ export function agregarNotaClinica(payload) {
   //   tipo_reporte
   // }
   return postJson(ENDPOINTS.AGREGAR_NOTA_CLINICA, payload);
+}
+
+// --- Notas evolutivas (NUEVO) ---
+export async function crearNotaEvolutiva(payload) {
+  // payload:
+  // {
+  //   uid: "",
+  //   no_registro: "",
+  //   no_expediente: "",
+  //   nombre_completo: "",
+  //   fecha: "YYYY-MM-DD",
+  //   contenido_nota: "",
+  //   firma_psicologo: "Licda. Maura Violeta"
+  // }
+  console.log("📝 Creando nota evolutiva...", payload);
+  const result = await postJson(ENDPOINTS.CREAR_NOTA_EVOLUTIVA, payload);
+  console.log("✅ Nota creada exitosamente:", result);
+  return result;
+}
+
+export async function obtenerNotasEvolutivas(params) {
+  // params opcional: { uid: "..." }  -> GET /obtener_notas_evolutivas?uid=...
+  // si no mandas params -> GET /obtener_notas_evolutivas (todas)
+  const response = await getJson(ENDPOINTS.OBTENER_NOTAS_EVOLUTIVAS, params || {});
+  
+  // La API retorna { success, total, mensaje, notas: [...] }
+  // Extraemos el array de notas
+  if (response && response.notas) {
+    return response.notas;
+  }
+  
+  // Si la respuesta ya es un array, lo retornamos directamente (por compatibilidad)
+  if (Array.isArray(response)) {
+    return response;
+  }
+  
+  // Si no hay notas, retornamos un array vacío
+  return [];
+}
+
+export function obtenerNotaEvolutivaPorId(params) {
+  // params: { nota_id: "..." } -> GET /obtener_nota_evolutiva_por_id?nota_id=...
+  return getJson(ENDPOINTS.OBTENER_NOTA_EVOLUTIVA_ID, params);
+}
+
+export async function actualizarNotaEvolutiva(payload) {
+  console.log("🔄 Actualizando nota evolutiva...", payload);
+  const result = await postJson(ENDPOINTS.ACTUALIZAR_NOTA_EVOLUTIVA, payload);
+  
+  console.log("✅ Nota actualizada exitosamente:", result);
+  return result;
 }

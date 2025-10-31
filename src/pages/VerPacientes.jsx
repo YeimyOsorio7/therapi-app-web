@@ -159,6 +159,11 @@ const VerPacientes = () => {
             getSigsaInfo(payload),
             getFichaMedica(payload)
         ]);
+        
+        console.log("📋 Datos del paciente recibidos:", pacienteData);
+        console.log("📋 Datos SIGSA recibidos:", sigsaData);
+        console.log("📋 Ficha médica recibida:", fichaData);
+        
         setModalData({
             sigsa: sigsaData,
             ficha: fichaData,
@@ -451,7 +456,7 @@ const VerPacientes = () => {
         </div>
       </div>
 
-      {/* Modal (sin cambios en el renderizado) */}
+      {/* Modal */}
       <Modal open={!!view} onClose={closeModal} title={view ? `Ficha de ${view.nombre}` : ""}>
         {modalData.loading ? (
             <div className="text-center p-8 text-indigo-600 dark:text-indigo-300">Cargando detalles...</div>
@@ -459,37 +464,64 @@ const VerPacientes = () => {
             <div className="text-center p-8 text-rose-600 dark:text-rose-400">
                 {modalData.error}
             </div>
-        ) : view && modalData.paciente && modalData.sigsa && modalData.ficha ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mb-2">Datos Básicos (Paciente)</h4>
-              <p><strong>UID:</strong> {modalData.paciente.uid || 'N/A'}</p>
-              <p><strong>Nombre:</strong> {modalData.paciente.nombre || 'N/A'}</p>
-              <p><strong>Apellido:</strong> {modalData.paciente.apellido || 'N/A'}</p>
-              <p><strong>Estado:</strong> {modalData.paciente.estado_paciente || 'N/A'}</p>
-              <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mt-4 mb-2">Ficha Médica</h4>
-              <p><strong>DPI/CUI:</strong> {modalData.ficha.cui || 'N/A'}</p>
-              <p><strong>Patología:</strong> {modalData.ficha.patologia || 'N/A'}</p>
-              <p><strong>CIE-10 (Ficha):</strong> {modalData.ficha.cei10 || 'N/A'}</p>
-              <p><strong>Escolaridad:</strong> {modalData.ficha.escolaridad || 'N/A'}</p>
-              <p><strong>Ocupación:</strong> {modalData.ficha.ocupacion || 'N/A'}</p>
-              <p><strong>Estado Civil:</strong> {modalData.ficha.estado_civil || 'N/A'}</p>
-              <p><strong>Paciente Referido:</strong> {modalData.ficha.paciente_referido ? 'Sí' : 'No'}</p>
+        ) : view ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+            {/* Columna Izquierda: Datos Básicos y Ficha Médica */}
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mb-3 pb-2 border-b border-indigo-200 dark:border-indigo-800">
+                  Datos Básicos del Paciente
+                </h4>
+                <div className="space-y-2">
+                  <p><strong>UID:</strong> {view.uid || modalData.paciente?.uid || 'N/A'}</p>
+                  <p><strong>Nombre Completo:</strong> {view.nombre || `${modalData.paciente?.nombre || ''} ${modalData.paciente?.apellido || ''}`.trim() || 'N/A'}</p>
+                  <p><strong>Estado:</strong> {modalData.paciente?.estado_paciente || 'N/A'}</p>
+                  <p><strong>Fecha de Consulta:</strong> {view.fechaConsulta || modalData.paciente?.fecha_consulta || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mb-3 pb-2 border-b border-indigo-200 dark:border-indigo-800">
+                  Ficha Médica
+                </h4>
+                <div className="space-y-2">
+                  <p><strong>DPI/CUI:</strong> {view.dpi || modalData.ficha?.cui || 'N/A'}</p>
+                  <p><strong>Patología:</strong> {view.diagnostico || modalData.ficha?.patologia || 'N/A'}</p>
+                  <p><strong>CIE-10:</strong> {view.cie10 || modalData.ficha?.cei10 || 'N/A'}</p>
+                  <p><strong>Escolaridad:</strong> {modalData.ficha?.escolaridad || 'N/A'}</p>
+                  <p><strong>Ocupación:</strong> {modalData.ficha?.ocupacion || 'N/A'}</p>
+                  <p><strong>Estado Civil:</strong> {modalData.ficha?.estado_civil || 'N/A'}</p>
+                  <p><strong>Paciente Referido:</strong> {modalData.ficha?.paciente_referido ? 'Sí' : 'No'}</p>
+                  <p><strong>Tipo de Terapia:</strong> {view.terapia || modalData.ficha?.tipo_terapia || 'N/A'}</p>
+                </div>
+              </div>
             </div>
+
+            {/* Columna Derecha: Datos SIGSA */}
             <div>
-              <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mb-2">Datos SIGSA</h4>
-              <p><strong>Fecha Consulta:</strong> {modalData.sigsa.fecha_consulta || 'N/A'}</p>
-              <p><strong>DPI/CUI:</strong> {modalData.sigsa.cui || 'N/A'}</p>
-              <p><strong>Nacimiento:</strong> {modalData.sigsa.fecha_nacimiento || 'N/A'}</p>
-              <p><strong>Edad:</strong> {modalData.sigsa.edad || 'N/A'}</p>
-              <p><strong>Sexo:</strong> {modalData.sigsa.genero === "M" ? "Hombre" : modalData.sigsa.genero === "F" ? "Mujer" : 'N/A'}</p>
-              <p><strong>Municipio:</strong> {modalData.sigsa.municipio || 'N/A'}</p>
-              <p><strong>Aldea:</strong> {modalData.sigsa.aldea || 'N/A'}</p>
-              <p><strong>Diagnóstico (SIGSA):</strong> {modalData.sigsa.diagnostico || 'N/A'}</p>
-              <p><strong>CIE-10 (SIGSA):</strong> {modalData.sigsa.cie_10 || 'N/A'}</p>
-              <p><strong>Consulta:</strong> {modalData.sigsa.consulta || 'N/A'}</p>
-              <p><strong>Terapia:</strong> {modalData.sigsa.terapia || 'N/A'}</p>
-              <p><strong>Embarazo:</strong> {modalData.sigsa.embarazo ? "Sí" : 'No aplica'}</p>
+              <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mb-3 pb-2 border-b border-indigo-200 dark:border-indigo-800">
+                Datos SIGSA
+              </h4>
+              <div className="space-y-2">
+                <p><strong>DPI/CUI:</strong> {view.dpi || modalData.sigsa?.cui || 'N/A'}</p>
+                <p><strong>Fecha de Nacimiento:</strong> {view.nacimiento || modalData.sigsa?.fecha_nacimiento || 'N/A'}</p>
+                <p><strong>Edad:</strong> {view.edad || modalData.sigsa?.edad || 'N/A'}</p>
+                <p>
+                  <strong>Sexo:</strong>{' '}
+                  {view.sexo === "M" || modalData.sigsa?.genero === "M" 
+                    ? "Hombre" 
+                    : view.sexo === "F" || modalData.sigsa?.genero === "F" 
+                    ? "Mujer" 
+                    : 'N/A'}
+                </p>
+                <p><strong>Municipio:</strong> {view.municipio || modalData.sigsa?.municipio || 'N/A'}</p>
+                <p><strong>Aldea:</strong> {view.aldea || modalData.sigsa?.aldea || 'N/A'}</p>
+                <p><strong>Diagnóstico:</strong> {view.diagnostico || modalData.sigsa?.diagnostico || 'N/A'}</p>
+                <p><strong>CIE-10:</strong> {view.cie10 || modalData.sigsa?.cie_10 || 'N/A'}</p>
+                <p><strong>Tipo de Consulta:</strong> {modalData.sigsa?.consulta || (view.consulta?.primera ? 'Primera vez' : view.consulta?.reconsulta ? 'Control' : 'N/A')}</p>
+                <p><strong>Terapia:</strong> {view.terapia || modalData.sigsa?.terapia || 'N/A'}</p>
+                <p><strong>Embarazo:</strong> {modalData.sigsa?.embarazo || view.embarazo?.menor ? "Sí" : 'No aplica'}</p>
+              </div>
             </div>
           </div>
         ) : (
