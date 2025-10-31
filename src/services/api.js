@@ -166,7 +166,7 @@ export function agregarNotaClinica(payload) {
 }
 
 // --- Notas evolutivas (NUEVO) ---
-export function crearNotaEvolutiva(payload) {
+export async function crearNotaEvolutiva(payload) {
   // payload:
   // {
   //   uid: "",
@@ -177,13 +177,30 @@ export function crearNotaEvolutiva(payload) {
   //   contenido_nota: "",
   //   firma_psicologo: "Licda. Maura Violeta"
   // }
-  return postJson(ENDPOINTS.CREAR_NOTA_EVOLUTIVA, payload);
+  console.log("📝 Creando nota evolutiva...", payload);
+  const result = await postJson(ENDPOINTS.CREAR_NOTA_EVOLUTIVA, payload);
+  console.log("✅ Nota creada exitosamente:", result);
+  return result;
 }
 
-export function obtenerNotasEvolutivas(params) {
+export async function obtenerNotasEvolutivas(params) {
   // params opcional: { uid: "..." }  -> GET /obtener_notas_evolutivas?uid=...
   // si no mandas params -> GET /obtener_notas_evolutivas (todas)
-  return getJson(ENDPOINTS.OBTENER_NOTAS_EVOLUTIVAS, params || {});
+  const response = await getJson(ENDPOINTS.OBTENER_NOTAS_EVOLUTIVAS, params || {});
+  
+  // La API retorna { success, total, mensaje, notas: [...] }
+  // Extraemos el array de notas
+  if (response && response.notas) {
+    return response.notas;
+  }
+  
+  // Si la respuesta ya es un array, lo retornamos directamente (por compatibilidad)
+  if (Array.isArray(response)) {
+    return response;
+  }
+  
+  // Si no hay notas, retornamos un array vacío
+  return [];
 }
 
 export function obtenerNotaEvolutivaPorId(params) {
@@ -192,32 +209,9 @@ export function obtenerNotaEvolutivaPorId(params) {
 }
 
 export async function actualizarNotaEvolutiva(payload) {
-  // payload:
-  // {
-  //   nota_id: "",
-  //   contenido_nota: "",
-  //   firma_psicologo: "",
-  //   fecha: "YYYY-MM-DD"
-  // }
-  const finalUrl = `${BASE_URL}${ENDPOINTS.ACTUALIZAR_NOTA_EVOLUTIVA}`;
-  const res = await fetch(finalUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const contentType = res.headers.get("content-type") || "";
-  const data = contentType.includes("application/json")
-    ? await res.json().catch(() => null)
-    : await res.text().catch(() => null);
-
-  if (!res.ok) {
-    const msg =
-      typeof data === "string" ? data : data?.error || `Error ${res.status}`;
-    throw new Error(msg);
-  }
-  return data;
+  console.log("🔄 Actualizando nota evolutiva...", payload);
+  const result = await postJson(ENDPOINTS.ACTUALIZAR_NOTA_EVOLUTIVA, payload);
+  
+  console.log("✅ Nota actualizada exitosamente:", result);
+  return result;
 }

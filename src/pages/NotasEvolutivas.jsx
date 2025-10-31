@@ -78,6 +78,7 @@ export default function NotasEvolutivas() {
     setError(""); setWarn("");
     if (!uid) {
       const todas = await obtenerNotasEvolutivas();
+      console.log("Todas las notas evolutivas:", todas);
       setNotas(Array.isArray(todas) ? todas : []);
       return;
     }
@@ -146,12 +147,27 @@ export default function NotasEvolutivas() {
         contenido_nota: form.contenido_nota,
         firma_psicologo: form.firma_psicologo || "Licda. Maura Violeta",
       };
-      await crearNotaEvolutiva(payload);
-      await fetchNotasPorUID(pacienteUID);
-      setOk("✔️ Nota evolutiva guardada correctamente.");
-      resetForm();
+      
+      // Crear la nota
+      const resultado = await crearNotaEvolutiva(payload);
+      console.log("Nota creada:", resultado);
+      
+      // Cambiar primero a modo lista
       setModo("lista");
+      
+      // Actualizar la lista de notas
+      await fetchNotasPorUID(pacienteUID);
+      
+      // Mostrar mensaje de éxito
+      setOk("✔️ Nota evolutiva guardada correctamente.");
+      
+      // Limpiar el formulario
+      resetForm();
+      
+      // Auto-ocultar el mensaje después de 5 segundos
+      setTimeout(() => setOk(""), 5000);
     } catch (e) {
+      console.error("Error al crear nota:", e);
       setError(humanizeError(e));
     } finally {
       setLoading(false);
@@ -178,17 +194,30 @@ export default function NotasEvolutivas() {
     setError(""); setWarn(""); setOk("");
     setLoading(true);
     try {
-      await actualizarNotaEvolutiva({
+      const resultado = await actualizarNotaEvolutiva({
         nota_id: form.nota_id,
         contenido_nota: form.contenido_nota,
         firma_psicologo: form.firma_psicologo,
         fecha: form.fecha,
       });
-      await fetchNotasPorUID(pacienteUID);
-      setOk("✔️ Cambios guardados.");
-      resetForm();
+      console.log("Nota actualizada:", resultado);
+      
+      // Cambiar primero a modo lista
       setModo("lista");
+      
+      // Actualizar la lista de notas
+      await fetchNotasPorUID(pacienteUID);
+      
+      // Mostrar mensaje de éxito
+      setOk("✔️ Cambios guardados correctamente.");
+      
+      // Limpiar el formulario
+      resetForm();
+      
+      // Auto-ocultar el mensaje después de 5 segundos
+      setTimeout(() => setOk(""), 5000);
     } catch (e) {
+      console.error("Error al actualizar nota:", e);
       setError(humanizeError(e));
     } finally {
       setLoading(false);
@@ -403,15 +432,17 @@ export default function NotasEvolutivas() {
               <button
                 type="button"
                 onClick={cancelar}
-                className="rounded-2xl px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                disabled={loading}
+                className="rounded-2xl px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="rounded-2xl px-4 py-2 text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700"
+                disabled={loading}
+                className="rounded-2xl px-4 py-2 text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {modo === "crear" ? "Guardar Nota" : "Guardar Cambios"}
+                {loading ? "Guardando..." : (modo === "crear" ? "Guardar Nota" : "Guardar Cambios")}
               </button>
             </div>
           </form>

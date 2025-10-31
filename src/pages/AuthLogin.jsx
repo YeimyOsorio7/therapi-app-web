@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Header from '../components/Header';
-import { loginUser } from "../services/api"; // 👈 IMPORTAR llamada real a backend
+import { signInWithEmailAndPassword, signInAnonymously } from "firebase/auth";
+import { auth } from "../firebase";
+import { loginUser } from "../services/api";
 
 export default function AuthLogin() {
   const navigate = useNavigate();
@@ -33,7 +35,7 @@ export default function AuthLogin() {
     setForm((s) => ({ ...s, [e.target.name]: e.target.value }));
   };
 
-  // Enviar login REAL al backend
+  // Enviar login - Soporta tanto email como usuario
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -45,51 +47,109 @@ export default function AuthLogin() {
 
     setLoading(true);
     try {
-      // 1. Llamamos al backend
-      const resp = await loginUser({
-        usuario: form.user.trim(),
-        contrasenia: form.password.trim(),
-      });
+      const userInput = form.user.trim();
+      const password = form.password.trim();
+      
+      // Detectar si es un email (contiene @) o un usuario
+      const isEmail = userInput.includes("@");
+      
+      let finalUserObject;
 
-      // Esperamos algo tipo:
-      // { success:true, user:{ user_id:'...', usuario:'...', admin:false, re_paciente:'...', fecha_creacion:'...' } }
-      if (!resp || resp.success === false) {
-        const msg = resp?.error || "Credenciales incorrectas";
-        throw new Error(msg);
+      if (isEmail) {
+        // ===== CASO 1: Login con EMAIL y contraseña usando Firebase =====
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          userInput,
+          password
+        );
+
+        const firebaseUser = userCredential.user;
+
+        finalUserObject = {
+          id: firebaseUser.uid,
+          user_id: firebaseUser.uid,
+          usuario: firebaseUser.email,
+          admin: false,
+          re_paciente: null,
+          fecha_creacion: firebaseUser.metadata.creationTime || null,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName || null,
+        };
+
+      } else {
+        // ===== CASO 2: Login con USUARIO y contraseña usando API backend =====
+        const resp = await loginUser({
+          usuario: userInput,
+          contrasenia: password,
+        });
+
+        if (!resp || resp.success === false) {
+          const msg = resp?.error || "Credenciales incorrectas";
+          throw new Error(msg);
+        }
+
+        const backendUser = resp.user || resp;
+
+        // Después de validar con el backend, hacer login anónimo en Firebase
+        // para que el usuario tenga una sesión de Firebase también
+        const anonCredential = await signInAnonymously(auth);
+
+        finalUserObject = {
+          id: backendUser.user_id || backendUser.id || backendUser.uid || anonCredential.user.uid,
+          user_id: backendUser.user_id || backendUser.id || backendUser.uid,
+          usuario: backendUser.usuario,
+          admin: !!backendUser.admin,
+          re_paciente: backendUser.re_paciente || null,
+          fecha_creacion: backendUser.fecha_creacion || null,
+          email: backendUser.email || null,
+          displayName: backendUser.usuario || null,
+          isAnonymous: true, // Marcar que es una cuenta de usuario (no email)
+        };
+
+        if (!finalUserObject.user_id) {
+          throw new Error("No se recibió user_id del servidor.");
+        }
       }
 
-      // Si el backend devuelve { success: true, user: {...} }
-      // usamos resp.user; si devuelve directo {...}, usamos resp.
-      const backendUser = resp.user || resp;
-
-      // Validar que venga el identificador real
-      // Este es EL ID que luego usaremos como user_id en NotasClinicas
-      const finalUserObject = {
-        id: backendUser.user_id || backendUser.id || backendUser.uid, // <-- clave interna única para ese paciente
-        user_id: backendUser.user_id || backendUser.id || backendUser.uid, // redundante, para que sea explícito
-        usuario: backendUser.usuario,
-        admin: !!backendUser.admin,
-        re_paciente: backendUser.re_paciente || null,
-        fecha_creacion: backendUser.fecha_creacion || null,
-      };
-
-      if (!finalUserObject.user_id) {
-        // Si NO viene user_id del backend, no podemos continuar porque luego NotasClinicas fallará
-        throw new Error("No se recibió user_id del servidor.");
-      }
-
-      // 2. Guardamos al usuario en el contexto global
+      // Guardamos al usuario en el contexto global
       login(finalUserObject);
 
-      // 3. Redirigir según rol
-      // routeFor() ya decide:
-      //   admin / psicologa -> "/admin/estadisticas"
-      //   normal -> "/chat"
+      // Redirigir según rol
       navigate(routeFor(finalUserObject), { replace: true });
 
     } catch (loginError) {
       console.error("Login failed:", loginError);
-      setError(`❌ Error al iniciar sesión: ${loginError.message || "Intente de nuevo."}`);
+      
+      // Mensajes de error específicos
+      let errorMsg = "Intente de nuevo.";
+      
+      // Errores de Firebase
+      if (loginError.code) {
+        switch (loginError.code) {
+          case "auth/invalid-email":
+            errorMsg = "El formato del correo electrónico no es válido.";
+            break;
+          case "auth/user-disabled":
+            errorMsg = "Esta cuenta ha sido deshabilitada.";
+            break;
+          case "auth/user-not-found":
+            errorMsg = "No existe una cuenta con este correo electrónico.";
+            break;
+          case "auth/wrong-password":
+            errorMsg = "Contraseña incorrecta.";
+            break;
+          case "auth/invalid-credential":
+            errorMsg = "Credenciales inválidas. Verifica tu correo y contraseña.";
+            break;
+          default:
+            errorMsg = loginError.message || "Error desconocido.";
+        }
+      } else {
+        // Error del backend
+        errorMsg = loginError.message || "Credenciales incorrectas.";
+      }
+      
+      setError(`❌ Error al iniciar sesión: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -123,13 +183,13 @@ export default function AuthLogin() {
                   htmlFor="user-login"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Usuario
+                  Usuario o Correo electrónico
                 </label>
                 <input
                   id="user-login"
                   name="user"
                   type="text"
-                  placeholder="Ingresa tu usuario"
+                  placeholder="usuario o ejemplo@correo.com"
                   value={form.user}
                   onChange={handleChange}
                   className={`w-full px-4 py-2 rounded-lg border transition-all duration-200
