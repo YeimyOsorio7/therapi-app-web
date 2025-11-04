@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Header from '../components/Header';
-import { signInWithEmailAndPassword, signInAnonymously } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { loginUser } from "../services/api";
 
@@ -35,7 +35,7 @@ export default function AuthLogin() {
     setForm((s) => ({ ...s, [e.target.name]: e.target.value }));
   };
 
-  // Enviar login - Soporta tanto email como usuario
+  // Enviar login - Soporta tanto email como usuario usando Firebase Auth
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -56,7 +56,7 @@ export default function AuthLogin() {
       let finalUserObject;
 
       if (isEmail) {
-        // ===== CASO 1: Login con EMAIL y contraseña usando Firebase =====
+        // ===== CASO 1: Login con EMAIL usando Firebase Auth =====
         const userCredential = await signInWithEmailAndPassword(
           auth,
           userInput,
@@ -64,22 +64,24 @@ export default function AuthLogin() {
         );
 
         const firebaseUser = userCredential.user;
+        
+        // Obtener custom claims de Firebase (incluye admin, re_paciente, etc.)
+        const idTokenResult = await firebaseUser.getIdTokenResult();
+        const claims = idTokenResult.claims;
 
         finalUserObject = {
           id: firebaseUser.uid,
           user_id: firebaseUser.uid,
           usuario: firebaseUser.email,
-          admin: false,
-          re_paciente: null,
-          fecha_creacion: firebaseUser.metadata.creationTime || null,
+          admin: !!claims.admin,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName || null,
         };
 
       } else {
-        // ===== CASO 2: Login con USUARIO y contraseña usando API backend =====
+        // ===== CASO 2: Login con USUARIO usando API backend =====
         const resp = await loginUser({
-          usuario: userInput,
+          usuario: userInput.toLowerCase(),
           contrasenia: password,
         });
 
@@ -88,27 +90,15 @@ export default function AuthLogin() {
           throw new Error(msg);
         }
 
-        const backendUser = resp.user || resp;
-
-        // Después de validar con el backend, hacer login anónimo en Firebase
-        // para que el usuario tenga una sesión de Firebase también
-        const anonCredential = await signInAnonymously(auth);
-
+        // Usar directamente la respuesta del backend
         finalUserObject = {
-          id: backendUser.user_id || backendUser.id || backendUser.uid || anonCredential.user.uid,
-          user_id: backendUser.user_id || backendUser.id || backendUser.uid,
-          usuario: backendUser.usuario,
-          admin: !!backendUser.admin,
-          re_paciente: backendUser.re_paciente || null,
-          fecha_creacion: backendUser.fecha_creacion || null,
-          email: backendUser.email || null,
-          displayName: backendUser.usuario || null,
-          isAnonymous: true, // Marcar que es una cuenta de usuario (no email)
+          id: resp.uid,
+          user_id: resp.uid,
+          usuario: userInput.toLowerCase(),
+          admin: !!resp.admin,
+          email: null,
+          displayName: userInput,
         };
-
-        if (!finalUserObject.user_id) {
-          throw new Error("No se recibió user_id del servidor.");
-        }
       }
 
       // Guardamos al usuario en el contexto global
@@ -133,7 +123,7 @@ export default function AuthLogin() {
             errorMsg = "Esta cuenta ha sido deshabilitada.";
             break;
           case "auth/user-not-found":
-            errorMsg = "No existe una cuenta con este correo electrónico.";
+            errorMsg = "No existe una cuenta con este nombre de usuario o correo.";
             break;
           case "auth/wrong-password":
             errorMsg = "Contraseña incorrecta.";
@@ -141,15 +131,18 @@ export default function AuthLogin() {
           case "auth/invalid-credential":
             errorMsg = "Credenciales inválidas. Verifica tu correo y contraseña.";
             break;
+          case "auth/too-many-requests":
+            errorMsg = "Demasiados intentos fallidos. Por favor, intenta más tarde.";
+            break;
           default:
             errorMsg = loginError.message || "Error desconocido.";
         }
       } else {
-        // Error del backend
+        // Otros errores
         errorMsg = loginError.message || "Credenciales incorrectas.";
       }
-      
-      setError(`❌ Error al iniciar sesión: ${errorMsg}`);
+
+      setError(`Fallo el inicio de sesión: ${errorMsg} 😔`);
     } finally {
       setLoading(false);
     }
