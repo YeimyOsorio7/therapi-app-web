@@ -1,6 +1,22 @@
 // src/pages/VerPacientes.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { getAllPacientes, getPacienteInfo, getSigsaInfo, getFichaMedica, upsertPatient } from "../services/api"; 
+import { getAllPacientes, getPacienteInfo, getSigsaInfo, getFichaMedica, upsertPatient } from "../services/api";
+
+// ⬇️ Importaciones para generar DOCX
+import {
+  AlignmentType,
+  Document,
+  HeadingLevel,
+  Packer,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  WidthType,
+  TextRun,
+  PageOrientation,
+} from "docx";
+import { saveAs } from "file-saver";
 
 /* ==================== Utilidades (sin cambios) ==================== */
 const parseFecha = (str) => {
@@ -275,6 +291,110 @@ const VerPacientes = () => {
     }
   };
 
+  // ⬇️ Botón/Funcionalidad: Exportar DOCX en horizontal (sin tocar lo demás)
+  const handleExportDocx = async () => {
+    try {
+      const headers = [
+        "No.", "N.º Historia Clínica", "FECHA DE CONSULTA", "Nombres y apellidos", "DPI",
+        "FECHA DE NACIMIENTO", "Edad", "Niño < 15", "Adulto", "Sexo", "Municipio", "Aldea",
+        "< 14 AÑOS", "≥ de edad", "1 ra.", "Re.", "Em.", "Diagnóstico", "CIE-10", "Terapia"
+      ];
+
+      const bool = (v) => (v ? "Sí" : "No");
+      const sexoTexto = (s) => (s === "M" || s === "H" ? "Hombre" : s === "F" ? "Mujer" : "");
+
+      const rowsForTable = filtrados.map((r) => ([
+        r.no?.toString() || "",
+        r.historia || "",
+        r.fechaConsulta || "",
+        r.nombre || "",
+        r.dpi || "",
+        r.nacimiento || "",
+        (r.edad ?? "").toString(),
+        bool(!!r.menorDe15),
+        bool(!!r.adulto),
+        sexoTexto(r.sexo) || "",
+        r.municipio || "",
+        r.aldea || "",
+        bool(!!r.embarazo?.menor),
+        bool(!!r.embarazo?.mayor),
+        bool(!!r.consulta?.primera),
+        bool(!!r.consulta?.reconsulta),
+        bool(!!r.consulta?.emergencia),
+        r.diagnostico || "",
+        r.cie10 || "",
+        r.terapia || "",
+      ]));
+
+      const headerRow = new TableRow({
+        children: headers.map((h) =>
+          new TableCell({
+            width: { size: 5, type: WidthType.PERCENTAGE },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: h, bold: true })],
+              }),
+            ],
+          })
+        ),
+      });
+
+      const bodyRows = rowsForTable.map((rowArr) =>
+        new TableRow({
+          children: rowArr.map((cellText) =>
+            new TableCell({
+              children: [new Paragraph({ children: [new TextRun(String(cellText || ""))] })],
+            })
+          ),
+        })
+      );
+
+      const table = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [headerRow, ...bodyRows],
+      });
+
+      const now = new Date();
+      const fechaStr = `${String(now.getDate()).padStart(2,"0")}/${String(now.getMonth()+1).padStart(2,"0")}/${now.getFullYear()}`;
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {
+              page: {
+                size: { orientation: PageOrientation.LANDSCAPE }, // Horizontal
+                margin: { top: 720, right: 720, bottom: 720, left: 720 }, // 1"
+              },
+            },
+            children: [
+              new Paragraph({
+                heading: HeadingLevel.HEADING1,
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "Lista de Pacientes", bold: true })],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: `Generado: ${fechaStr}` })],
+              }),
+              new Paragraph({ text: " " }),
+              table,
+            ],
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(
+        blob,
+        `Pacientes_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}.docx`
+      );
+    } catch (err) {
+      console.error("Error generando DOCX:", err);
+      alert("Ocurrió un error al generar el archivo .docx");
+    }
+  };
+
   // --- Renderizado (con la corrección en thead) ---
   return (
     <div className="min-h-screen p-4 md:p-6 bg-violet-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100">
@@ -300,6 +420,16 @@ const VerPacientes = () => {
             </button>
             <button onClick={resetFilters} className="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm" title="Limpiar filtros">
               🧹 Limpiar
+            </button>
+
+            {/* ⬇️ Botón para descargar DOCX (Horizontal) */}
+            <button
+              onClick={handleExportDocx}
+             className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white text-sm"
+
+              title="Descargar pacientes en DOCX (horizontal)"
+            >
+              Descargar Pacientes (.docx)
             </button>
           </div>
         </div>
