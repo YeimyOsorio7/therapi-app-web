@@ -9,7 +9,6 @@ export default function Inicio() {
 
       <main className="flex-1 pt-24 md:pt-28">
         <section className="max-w-6xl mx-auto px-6 lg:px-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-          
           {/* Columna izquierda */}
           <div>
             <p className="text-lg sm:text-xl font-bold uppercase tracking-wider text-sky-700 dark:text-sky-400 mb-3">
@@ -46,7 +45,7 @@ export default function Inicio() {
               <ul className="space-y-3 text-gray-700 dark:text-gray-300 text-base">
                 <li className="flex gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-sky-500"></span>
-                  <span>Registrate para acceder al chatbot</span>
+                  <span>Regístrate para acceder al chatbot.</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-sky-500"></span>
@@ -54,7 +53,7 @@ export default function Inicio() {
                 </li>
                 <li className="flex gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-indigo-500"></span>
-                  <span>Agendar citas para tener una atención personalizada</span>
+                  <span>Agenda citas para tener una atención personalizada.</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-teal-500"></span>
@@ -92,6 +91,45 @@ export default function Inicio() {
               <p className="text-3xl font-extrabold text-gray-900 dark:text-white">Gratuito</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">Accesible para todos los usuarios</p>
             </div>
+          </div>
+        </section>
+
+        {/* --- NUEVA SECCIÓN: QUIÉNES SOMOS --- */}
+        <section className="mt-20 bg-white/80 dark:bg-gray-800/60 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 py-16">
+          <div className="max-w-5xl mx-auto px-6 text-center">
+            <h2 className="text-3xl font-extrabold text-sky-700 dark:text-sky-400 mb-6">
+              ¿Quiénes somos?
+            </h2>
+
+            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed text-justify">
+              El <strong>Centro de Salud</strong> cuenta con más de <strong>30 años de servicio</strong>,
+              dedicados a brindar atención integral y de calidad a la comunidad. Inició sus labores en un
+              pequeño espacio con una enfermera auxiliar, y gracias al compromiso del personal y al apoyo
+              constante del área de salud, ha logrado crecer y convertirse en una institución que ofrece
+              <strong> múltiples servicios especializados.</strong>
+            </p>
+
+            <p className="mt-4 text-lg text-gray-700 dark:text-gray-300 leading-relaxed text-justify">
+              Actualmente, el centro dispone de profesionales en <strong>psicología, nutrición y trabajo social</strong>,
+              además de un equipo de enfermería altamente comprometido. Estas áreas se incorporaron recientemente con el
+              objetivo de <strong>fortalecer la atención integral</strong> y ofrecer un acompañamiento más completo a cada paciente.
+            </p>
+
+            <p className="mt-4 text-lg text-gray-700 dark:text-gray-300 leading-relaxed text-justify">
+              Hace tres años, el edificio fue <strong>remodelado y ampliado</strong>, incluyendo la mejora del área de partos,
+              lo que permite brindar una atención más cómoda, segura y digna a las mujeres de la comunidad.
+            </p>
+
+            <p className="mt-4 text-lg text-gray-700 dark:text-gray-300 leading-relaxed text-justify">
+              Cada mes, el Centro de Salud atiende a <strong>más de 3,000 pacientes</strong>, reflejando la confianza,
+              cercanía y compromiso que lo caracterizan.
+            </p>
+
+            <p className="mt-4 text-lg text-gray-700 dark:text-gray-300 leading-relaxed text-justify">
+              Nuestro equipo trabaja con <strong>vocación, empatía y dedicación</strong>, desarrollando programas de salud mental,
+              nutrición y bienestar comunitario que buscan <strong>mejorar la calidad de vida</strong> de todas las personas
+              que confían en nosotros.
+            </p>
           </div>
         </section>
       </main>
