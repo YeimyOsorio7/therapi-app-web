@@ -407,59 +407,104 @@ export default function RegistroPaciente() {
               </div>
 
               {/* === Aldea / Dirección como SELECT con territorios === */}
-              <div>
-                <label htmlFor="aldea" className="form-label">
-                  Aldea / Dirección
-                </label>
-                <select id="aldea" name="aldea" value={form.aldea} onChange={handleChange("aldea")} className="form-select">
-                  <option value="">Seleccionar...</option>
+            <div>
+  <label htmlFor="aldea" className="form-label aldea-label">
+    Aldea / Dirección
+  </label>
 
-                  <optgroup label="Territorio 1">
-                    <option value="casco urbano">casco urbano</option>
-                    <option value="chuisactol">chuisactol</option>
-                    <option value="chuisiguan">chuisiguan</option>
-                    <option value="xesiquel">xesiquel</option>
-                  </optgroup>
+  {/* Campo que permite escribir o seleccionar sugerencias */}
+  <input
+    list="aldeas"
+    id="aldea"
+    name="aldea"
+    value={form.aldea}
+    onChange={handleChange("aldea")}
+    className="form-control custom-select-input"
+    placeholder="Seleccionar..."
+    autoComplete="off"
+  />
 
-                  <optgroup label="Territorio 2">
-                    <option value="Patzam">Patzam</option>
-                    <option value="Racaná">Racaná</option>
-                  </optgroup>
+  <datalist id="aldeas">
+    <option value="Chuacorral I" />
+    <option value="Chuacorral II" />
+    <option value="Chuacorral III" />
+    <option value="Xesaná" />
+    <option value="Xecajá" />
+    <option value="Rancho" />
+    <option value="Chuicacá" />
+    <option value="Xecachelaj" />
+    <option value="Xeb´e" />
+    <option value="Racaná" />
+    <option value="Patzam" />
+    <option value="Chuachituj" />
+    <option value="Chuiaj" />
+    <option value="Casa Blanca" />
+    <option value="Chuasiguan" />
+    <option value="Xecococh" />
+    <option value="Chuisactol" />
+  </datalist>
 
-                  <optgroup label="Territorio 3">
-                    <option value="chuacorral I">chuacorral I</option>
-                    <option value="chuacorral II">chuacorral II</option>
-                  </optgroup>
+  {/* === ESTILOS EN EL MISMO ARCHIVO === */}
+  <style>{`
+    .aldea-label {
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: inline-block;
+      color: #374151; /* gris oscuro */
+    }
 
-                  <optgroup label="Territorio 4">
-                    <option value="casa blanca">casa blanca</option>
-                    <option value="xecajá">xecajá</option>
-                  </optgroup>
+    .custom-select-input {
+      width: 100%;
+      font-size: 0.95rem;
+      line-height: 1.25rem;
+      padding: 0.625rem 2.5rem 0.625rem 0.875rem; /* espacio para la flecha */
+      border: 1.5px solid #d1d5db; /* gris claro */
+      border-radius: 10px;
+      background-color: #fff;
 
-                  <optgroup label="Territorio 5">
-                    <option value="chuicaca">chuicaca</option>
-                    <option value="chuacituj">chuacituj</option>
-                    <option value="xecococh">xecococh</option>
-                  </optgroup>
+      /* Quitar estilos nativos y poner flecha */
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
 
-                  <optgroup label="Territorio 6">
-                    <option value="xecachelaj">xecachelaj</option>
-                    <option value="parte de chuacorral III">parte de chuacorral III</option>
-                  </optgroup>
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 1rem;
 
-                  <optgroup label="Territorio 7">
-                    <option value="Xebé y sus parajes">Xebé y sus parajes</option>
-                  </optgroup>
+      transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+    }
 
-                  <optgroup label="Territorio 8">
-                    <option value="Xesaná">Xesaná</option>
-                  </optgroup>
+    .custom-select-input::placeholder {
+      color: #6b7280; /* gris medio */
+    }
 
-                  <optgroup label="Territorio 9">
-                    <option value="El Rancho chuiaj.">El Rancho chuiaj.</option>
-                  </optgroup>
-                </select>
-              </div>
+    .custom-select-input:hover {
+      border-color: #a5b4fc; /* morado claro */
+    }
+
+    .custom-select-input:focus {
+      outline: none;
+      border-color: #6366f1; /* morado/azulado como en la imagen */
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+
+    /* Modo oscuro opcional (si usas dark mode) */
+    :root.dark .aldea-label { color: #e5e7eb; }
+    :root.dark .custom-select-input {
+      background-color: #0f172a;
+      border-color: #334155;
+      color: #e5e7eb;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2399a2ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    }
+    :root.dark .custom-select-input:hover { border-color: #475569; }
+    :root.dark .custom-select-input:focus {
+      border-color: #818cf8;
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.35);
+    }
+  `}</style>
+</div>
+
               {/* === FIN Aldea === */}
             </div>
           </fieldset>
@@ -552,32 +597,99 @@ export default function RegistroPaciente() {
               </div>
 
               <div>
-                <label htmlFor="diagnostico" className="form-label">
-                  Diagnóstico (SIGSA)
-                </label>
-                <select id="diagnostico" name="diagnostico" value={form.diagnostico} onChange={handleDiagnosticoChange} className="form-select">
-                  <option value="">Seleccionar...</option>
-                  <option value="Problemas con Alcoholismo">Problemas con Alcoholismo</option>
-                  <option value="Estrés Laboral">Estrés Laboral</option>
-                  <option value="Problemas de Lenguaje">Problemas de Lenguaje</option>
-                  <option value="Problemas de Desarrollo">Problemas de Desarrollo</option>
-                  <option value="Problemas Conyugales">Problemas Conyugales</option>
-                  <option value="Trastorno de la ansiedad">Trastorno de la ansiedad</option>
-                  <option value="Problemas de Adaptacion">Problemas de Adaptacion</option>
-                  <option value="Depresión">Depresión</option>
-                  <option value="Ansiedad Generalizada">Ansiedad Generalizada</option>
-                  <option value="Problemas Somatoommorfos">Problemas Somatoommorfos</option>
-                  <option value="Tristeza Leve">Tristeza Leve</option>
-                  <option value="Otros Prob. que Generan Estrés en la fam">Otros Prob. que Generan Estrés en la fam</option>
-                  <option value="Asesoria Anticoncepcion">Asesoria Anticoncepcion</option>
-                  <option value="Falta de Alimentos Adecuados">Falta de Alimentos Adecuados</option>
-                  <option value="Fobia">Fobia</option>
-                  <option value="Apoyo Psicologico">Apoyo Psicologico</option>
-                  <option value="Ajuste de Vida">Ajuste de Vida</option>
-                  <option value="Duelo">Duelo</option>
-                  <option value="Trastorno del Sueño">Trastorno del Sueño</option>
-                </select>
-              </div>
+  <label htmlFor="diagnostico" className="form-label diagnostico-label">
+    Diagnóstico (SIGSA)
+  </label>
+
+  <input
+    list="diagnosticos"
+    id="diagnostico"
+    name="diagnostico"
+    value={form.diagnostico}
+    onChange={handleDiagnosticoChange}
+    className="form-control custom-select-input"
+    placeholder="Seleccionar o escribir..."
+  />
+
+  <datalist id="diagnosticos">
+    <option value="Problemas con Alcoholismo" />
+    <option value="Estrés Laboral" />
+    <option value="Problemas de Lenguaje" />
+    <option value="Problemas de Desarrollo" />
+    <option value="Problemas Conyugales" />
+    <option value="Trastorno de la ansiedad" />
+    <option value="Problemas de Adaptacion" />
+    <option value="Depresión" />
+    <option value="Ansiedad Generalizada" />
+    <option value="Problemas Somatoommorfos" />
+    <option value="Tristeza Leve" />
+    <option value="Otros Prob. que Generan Estrés en la fam" />
+    <option value="Asesoria Anticoncepcion" />
+    <option value="Falta de Alimentos Adecuados" />
+    <option value="Fobia" />
+    <option value="Apoyo Psicologico" />
+    <option value="Ajuste de Vida" />
+    <option value="Duelo" />
+    <option value="Trastorno del Sueño" />
+  </datalist>
+
+  <style>{`
+    .diagnostico-label {
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: inline-block;
+      color: #374151;
+    }
+
+    .custom-select-input {
+      width: 100%;
+      font-size: 0.95rem;
+      line-height: 1.25rem;
+      padding: 0.625rem 2.5rem 0.625rem 0.875rem;
+      border: 1.5px solid #d1d5db;
+      border-radius: 10px;
+      background-color: #fff;
+      color: #111827;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 1rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .custom-select-input::placeholder {
+      color: #6b7280;
+    }
+
+    .custom-select-input:hover {
+      border-color: #a5b4fc;
+    }
+
+    .custom-select-input:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+
+    /* Modo oscuro opcional */
+    :root.dark .diagnostico-label { color: #e5e7eb; }
+    :root.dark .custom-select-input {
+      background-color: #0f172a;
+      border-color: #334155;
+      color: #e5e7eb;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2399a2ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    }
+    :root.dark .custom-select-input:hover { border-color: #475569; }
+    :root.dark .custom-select-input:focus {
+      border-color: #818cf8;
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.35);
+    }
+  `}</style>
+</div>
+
 
               <div>
                 <label htmlFor="cie_10" className="form-label">

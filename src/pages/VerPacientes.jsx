@@ -24,15 +24,15 @@ const parseFecha = (str) => {
   if (str.includes('-')) {
     const d = new Date(str);
     if (!isNaN(d.getTime())) {
-        return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
     }
   }
   const parts = str.split("/");
   if (parts.length === 3) {
-      const [d, m, y] = parts.map(Number);
-      if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
-          return new Date(y, m - 1, d);
-      }
+    const [d, m, y] = parts.map(Number);
+    if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+      return new Date(y, m - 1, d);
+    }
   }
   return null;
 };
@@ -86,40 +86,43 @@ const Modal = ({ open, onClose, children, title }) => {
 const VerPacientes = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(null); 
-    
+  const [fetchError, setFetchError] = useState(null);
+
   const [query, setQuery] = useState("");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const [view, setView] = useState(null); 
+  const [view, setView] = useState(null);
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState(null);
-  const [modalData, setModalData] = useState({ 
-      sigsa: null, 
-      ficha: null, 
-      paciente: null,
-      loading: false, 
-      error: null 
+  const [modalData, setModalData] = useState({
+    sigsa: null,
+    ficha: null,
+    paciente: null,
+    loading: false,
+    error: null
   });
+
+  // ⬇️ Estado para botón "Eliminar"
+  const [deletingIds, setDeletingIds] = useState({}); // { [uid]: true }
 
   // (Función de carga de tabla fetchPacientes sin cambios)
   const fetchPacientes = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
     try {
-      const data = await getAllPacientes(); 
+      const data = await getAllPacientes();
       console.log("Request data", data);
       if (!data || !Array.isArray(data.patients)) {
-         throw new Error("El servidor no devolvió una lista de pacientes válida. Se esperaba { patients: [...] }");
+        throw new Error("El servidor no devolvió una lista de pacientes válida. Se esperaba { patients: [...] }");
       }
       const mappedData = data.patients.map((row, index) => {
         const { paciente = {}, sigsa = {}, ficha_medica = {} } = row;
         return {
           no: index + 1,
-          uid: row.uid, 
+          uid: row.uid,
           historia: ficha_medica.cui || sigsa.cui || row.uid,
           fechaConsulta: paciente.fecha_consulta || sigsa.fecha_consulta,
           nombre: `${paciente.nombre || ''} ${paciente.apellido || ''}`.trim(),
@@ -131,13 +134,13 @@ const VerPacientes = () => {
           sexo: sigsa.genero || ficha_medica.genero,
           municipio: sigsa.municipio || ficha_medica.municipio,
           aldea: sigsa.aldea || ficha_medica.aldea,
-          embarazo: { 
-            menor: ficha_medica.embarazo === 'Menor de 14', 
-            mayor: false, 
+          embarazo: {
+            menor: ficha_medica.embarazo === 'Menor de 14',
+            mayor: false,
           },
-          consulta: { 
-            primera: sigsa.consulta === 'Primera vez', 
-            reconsulta: sigsa.consulta === 'Control' || ficha_medica.tipo_consulta === 'Control', 
+          consulta: {
+            primera: sigsa.consulta === 'Primera vez',
+            reconsulta: sigsa.consulta === 'Control' || ficha_medica.tipo_consulta === 'Control',
             emergencia: false
           },
           diagnostico: sigsa.diagnostico || ficha_medica.patologia,
@@ -161,40 +164,40 @@ const VerPacientes = () => {
 
   // (Función de modal handleViewPatient sin cambios)
   const handleViewPatient = async (patientRow) => {
-    setView(patientRow); 
+    setView(patientRow);
     setModalData({ sigsa: null, ficha: null, paciente: null, loading: true, error: null });
     const payload = { uid: patientRow.uid };
     console.log("Fetching details for UID:", payload);
     if (!payload.uid) {
-        setModalData({ loading: false, error: "Este paciente no tiene un UID para consultar." });
-        return;
+      setModalData({ loading: false, error: "Este paciente no tiene un UID para consultar." });
+      return;
     }
     try {
-        const [pacienteData, sigsaData, fichaData] = await Promise.all([
-            getPacienteInfo(payload),
-            getSigsaInfo(payload),
-            getFichaMedica(payload)
-        ]);
-        
-        console.log("📋 Datos del paciente recibidos:", pacienteData);
-        console.log("📋 Datos SIGSA recibidos:", sigsaData);
-        console.log("📋 Ficha médica recibida:", fichaData);
-        
-        setModalData({
-            sigsa: sigsaData,
-            ficha: fichaData,
-            paciente: pacienteData,
-            loading: false,
-            error: null
-        });
-    } catch(e) {
-        setModalData({
-            sigsa: null,
-            ficha: null,
-            paciente: null,
-            loading: false,
-            error: `Error al cargar detalles: ${e.message}`
-        });
+      const [pacienteData, sigsaData, fichaData] = await Promise.all([
+        getPacienteInfo(payload),
+        getSigsaInfo(payload),
+        getFichaMedica(payload)
+      ]);
+
+      console.log("📋 Datos del paciente recibidos:", pacienteData);
+      console.log("📋 Datos SIGSA recibidos:", sigsaData);
+      console.log("📋 Ficha médica recibida:", fichaData);
+
+      setModalData({
+        sigsa: sigsaData,
+        ficha: fichaData,
+        paciente: pacienteData,
+        loading: false,
+        error: null
+      });
+    } catch (e) {
+      setModalData({
+        sigsa: null,
+        ficha: null,
+        paciente: null,
+        loading: false,
+        error: `Error al cargar detalles: ${e.message}`
+      });
     }
   };
 
@@ -245,49 +248,82 @@ const VerPacientes = () => {
   const cancelEdit = () => {
     setEditId(null); setDraft(null);
   };
-  
+
   // (Función de guardado saveEdit sin cambios)
   const saveEdit = async () => {
     if (!draft) return;
     const payload = {
-        uid: draft.uid,
-        new_info: {
-            nombre: draft.nombre.split(' ')[0],
-            apellido: draft.nombre.split(' ')[1] || '',
-            fecha_consulta: draft.fechaConsulta,
-            estado_paciente: "Activo", 
-        },
-        sigsa_info: {
-            cui: draft.dpi,
-            fecha_nacimiento: draft.nacimiento,
-            edad: draft.edad,
-            genero: draft.sexo,
-            municipio: draft.municipio,
-            aldea: draft.aldea,
-            consulta: draft.consulta.primera ? "Primera vez" : "Control",
-            diagnostico: draft.diagnostico,
-            cie_10: draft.cie10,
-            terapia: draft.terapia,
-        },
-        ficha_medica_info: {
-            cui: draft.dpi,
-            edad: draft.edad,
-            patologia: draft.diagnostico,
-            cei10: draft.cie10,
-            tipo_consulta: draft.consulta.reconsulta ? "Control" : "Primera vez",
-            tipo_terapia: draft.terapia,
-            embarazo: draft.embarazo.menor ? "Menor de 14" : "",
-        }
+      uid: draft.uid,
+      new_info: {
+        nombre: draft.nombre.split(' ')[0],
+        apellido: draft.nombre.split(' ')[1] || '',
+        fecha_consulta: draft.fechaConsulta,
+        estado_paciente: "Activo",
+      },
+      sigsa_info: {
+        cui: draft.dpi,
+        fecha_nacimiento: draft.nacimiento,
+        edad: draft.edad,
+        genero: draft.sexo,
+        municipio: draft.municipio,
+        aldea: draft.aldea,
+        consulta: draft.consulta.primera ? "Primera vez" : "Control",
+        diagnostico: draft.diagnostico,
+        cie_10: draft.cie10,
+        terapia: draft.terapia,
+      },
+      ficha_medica_info: {
+        cui: draft.dpi,
+        edad: draft.edad,
+        patologia: draft.diagnostico,
+        cei10: draft.cie10,
+        tipo_consulta: draft.consulta.reconsulta ? "Control" : "Primera vez",
+        tipo_terapia: draft.terapia,
+        embarazo: draft.embarazo.menor ? "Menor de 14" : "",
+      }
     };
     try {
-        await upsertPatient(payload); 
-        const updated = [...rows];
-        updated[editId] = draft;
-        setRows(updated);
-        setEditId(null); setDraft(null);
+      await upsertPatient(payload);
+      const updated = [...rows];
+      updated[editId] = draft;
+      setRows(updated);
+      setEditId(null); setDraft(null);
     } catch (e) {
-        console.error("Error al guardar:", e);
-        alert(`Error al guardar: ${e.message}`);
+      console.error("Error al guardar:", e);
+      alert(`Error al guardar: ${e.message}`);
+    }
+  };
+
+  /* ==================== Eliminar Paciente (nuevo) ==================== */
+  const handleDeletePatient = async (row) => {
+    if (!row?.uid) {
+      alert("Este registro no tiene UID válido.");
+      return;
+    }
+    const ok = window.confirm(`¿Eliminar al paciente "${row.nombre}"? Esta acción marcará el registro como Eliminado.`);
+    if (!ok) return;
+
+    try {
+      setDeletingIds((m) => ({ ...m, [row.uid]: true }));
+
+      // Soft delete con tu endpoint existente
+      await upsertPatient({
+        uid: row.uid,
+        new_info: {
+          estado_paciente: "Eliminado",
+        },
+      });
+
+      // Quitar de la UI
+      setRows((prev) => prev.filter((r) => r.uid !== row.uid));
+    } catch (e) {
+      console.error("Error al eliminar:", e);
+      alert(`No se pudo eliminar: ${e.message || "Error desconocido."}`);
+    } finally {
+      setDeletingIds((m) => {
+        const { [row.uid]: _, ...rest } = m;
+        return rest;
+      });
     }
   };
 
@@ -425,15 +461,14 @@ const VerPacientes = () => {
             {/* ⬇️ Botón para descargar DOCX (Horizontal) */}
             <button
               onClick={handleExportDocx}
-             className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white text-sm"
-
+              className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white text-sm"
               title="Descargar pacientes en DOCX (horizontal)"
             >
               Descargar Pacientes (.docx)
             </button>
           </div>
         </div>
-        
+
         {/* Mensajes de carga y error (sin cambios) */}
         {fetchError && (
           <div className="p-4 text-center text-rose-700 bg-rose-50 dark:bg-rose-900/30 border-t border-rose-300">
@@ -452,20 +487,19 @@ const VerPacientes = () => {
           <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-white dark:from-gray-900 to-transparent rounded-br-2xl" />
           <div className="overflow-x-auto rounded-b-2xl">
             <table className="min-w-[1200px] w-full text-sm border-separate border-spacing-0">
-              {/* ✅ CORRECCIÓN APLICADA AQUÍ */}
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-gray-100 dark:bg-gray-800 text-left">
-                      {[
-                        "No.", "N.º Historia Clínica", "FECHA DE CONSULTA", "Nombres y apellidos", "DPI",
-                        "FECHA DE NACIMIENTO", "Edad", "Niño < 15", "Adulto", "Sexo", "Municipio", "Aldea",
-                        "< 14 AÑOS", "≥ de edad", "1 ra.", "Re.", "Em.", "Diagnóstico", "CIE-10", "Terapia", "Acciones",
-                      ].map((h, i, arr) => (
-                        <th key={i} className={`px-3 py-2 font-semibold border-b border-gray-200 dark:border-gray-700 ${ i === 0 ? "rounded-tl-2xl" : ""} ${i === arr.length - 1 ? "rounded-tr-2xl" : ""}`}>
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-gray-100 dark:bg-gray-800 text-left">
+                  {[
+                    "No.", "N.º Historia Clínica", "FECHA DE CONSULTA", "Nombres y apellidos", "DPI",
+                    "FECHA DE NACIMIENTO", "Edad", "Niño < 15", "Adulto", "Sexo", "Municipio", "Aldea",
+                    "< 14 AÑOS", "≥ de edad", "1 ra.", "Re.", "Em.", "Diagnóstico", "CIE-10", "Terapia", "Acciones",
+                  ].map((h, i, arr) => (
+                    <th key={i} className={`px-3 py-2 font-semibold border-b border-gray-200 dark:border-gray-700 ${ i === 0 ? "rounded-tl-2xl" : ""} ${i === arr.length - 1 ? "rounded-tr-2xl" : ""}`}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
               <tbody>
                 {pageRows.length === 0 && !loading ? (
                   <tr>
@@ -475,11 +509,13 @@ const VerPacientes = () => {
                   </tr>
                 ) : (
                   pageRows.map((p) => {
-                    const editing = editId === (p.no - 1); 
+                    const editing = editId === (p.no - 1);
                     const row = editing ? draft : p;
+                    const isDeleting = !!deletingIds[row.uid];
+
                     return (
                       <tr key={p.no} className="odd:bg-white even:bg-gray-50 odd:dark:bg-gray-900 even:dark:bg-gray-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-colors">
-                        {/* Celdas de la tabla (sin cambios) */}
+                        {/* Celdas */}
                         <td className="p-3 border-b border-gray-200 dark:border-gray-700 text-center">{row.no}</td>
                         <td className="p-3 border-b border-gray-200 dark:border-gray-700">
                           {editing ? <input value={row.historia} onChange={(e) => setDraft({ ...row, historia: e.target.value })} className="w-24 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" /> : row.historia}
@@ -546,13 +582,39 @@ const VerPacientes = () => {
                         <td className="p-3 border-b border-gray-200 dark:border-gray-700">
                           {editId !== (p.no - 1) ? (
                             <div className="flex items-center gap-2">
-                              <button onClick={() => handleViewPatient(p)} className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700" title="Ver ficha"> 👁️ Ver </button>
-                              <button onClick={() => startEdit(p)} className="px-2 py-1 rounded bg-indigo-500 hover:bg-indigo-600 text-white" title="Editar"> ✏️ Editar </button>
+                              <button
+                                onClick={() => handleViewPatient(p)}
+                                className="px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                title="Ver ficha"
+                              >
+                                👁️ Ver
+                              </button>
+                              <button
+                                onClick={() => startEdit(p)}
+                                className="px-2 py-1 rounded bg-indigo-500 hover:bg-indigo-600 text-white"
+                                title="Editar"
+                              >
+                                ✏️ Editar
+                              </button>
+
+                              {/* ⬇️ NUEVO: botón Eliminar */}
+                              <button
+                                onClick={() => handleDeletePatient(p)}
+                                disabled={isDeleting}
+                                className={`px-2 py-1 rounded text-white ${isDeleting ? "opacity-60 cursor-not-allowed bg-rose-500" : "bg-rose-500 hover:bg-rose-600"}`}
+                                title="Eliminar paciente"
+                              >
+                                ✖️ Eliminar
+                              </button>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <button onClick={saveEdit} className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white" title="Guardar"> 💾 Guardar </button>
-                              <button onClick={cancelEdit} className="px-2 py-1 rounded bg-rose-500 hover:bg-rose-600 text-white" title="Cancelar"> ✖ Cancelar </button>
+                              <button onClick={saveEdit} className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white" title="Guardar">
+                                💾 Guardar
+                              </button>
+                              <button onClick={cancelEdit} className="px-2 py-1 rounded bg-rose-500 hover:bg-rose-600 text-white" title="Cancelar">
+                                ✖ Cancelar
+                              </button>
                             </div>
                           )}
                         </td>
@@ -589,11 +651,11 @@ const VerPacientes = () => {
       {/* Modal */}
       <Modal open={!!view} onClose={closeModal} title={view ? `Ficha de ${view.nombre}` : ""}>
         {modalData.loading ? (
-            <div className="text-center p-8 text-indigo-600 dark:text-indigo-300">Cargando detalles...</div>
+          <div className="text-center p-8 text-indigo-600 dark:text-indigo-300">Cargando detalles...</div>
         ) : modalData.error ? (
-            <div className="text-center p-8 text-rose-600 dark:text-rose-400">
-                {modalData.error}
-            </div>
+          <div className="text-center p-8 text-rose-600 dark:text-rose-400">
+            {modalData.error}
+          </div>
         ) : view ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
             {/* Columna Izquierda: Datos Básicos y Ficha Médica */}
@@ -637,11 +699,11 @@ const VerPacientes = () => {
                 <p><strong>Fecha de Nacimiento:</strong> {view.nacimiento || modalData.sigsa?.fecha_nacimiento || 'N/A'}</p>
                 <p><strong>Edad:</strong> {view.edad || modalData.sigsa?.edad || 'N/A'}</p>
                 <p>
-                  <strong>Sexo:</strong>{' '}
-                  {view.sexo === "M" || modalData.sigsa?.genero === "M" 
-                    ? "Hombre" 
-                    : view.sexo === "F" || modalData.sigsa?.genero === "F" 
-                    ? "Mujer" 
+                  <strong>Sexo:</strong>{" "}
+                  {view.sexo === "M" || modalData.sigsa?.genero === "M"
+                    ? "Hombre"
+                    : view.sexo === "F" || modalData.sigsa?.genero === "F"
+                    ? "Mujer"
                     : 'N/A'}
                 </p>
                 <p><strong>Municipio:</strong> {view.municipio || modalData.sigsa?.municipio || 'N/A'}</p>
@@ -655,9 +717,9 @@ const VerPacientes = () => {
             </div>
           </div>
         ) : (
-            <div className="text-center p-8 text-gray-500 dark:text-gray-400">
-                Datos de paciente no disponibles.
-            </div>
+          <div className="text-center p-8 text-gray-500 dark:text-gray-400">
+            Datos de paciente no disponibles.
+          </div>
         )}
       </Modal>
     </div>
