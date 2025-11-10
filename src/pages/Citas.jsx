@@ -238,13 +238,6 @@ const Citas = () => {
 
         {/* Contenido */}
         <div className="p-5 md:p-6 space-y-6">
-          {/* Message Area */}
-          {msg.text && (
-            <div className={`p-3 rounded-lg text-sm font-semibold ${msg.type === 'error' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300' : (msg.type === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300')}`}>
-              {msg.text}
-            </div>
-          )}
-
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
              {/* ... KPI divs ... */}
@@ -269,58 +262,64 @@ const Citas = () => {
             </div>
           </section>
 
-          {/* Mensaje de Carga */}
-          {loading && ( <div className="loading-message"> Cargando citas... </div> )}
-
-          {/* Tabla de Citas */}
-          <div className="table-container">
-            <table className="appointments-table">
-              <thead>
-                <tr>
-                  {["Nombre", "Fecha", "Hora", "Motivo", "Reunión", "Estado", "Acciones"].map((h, i, arr) => ( <th key={h} className={`table-header ${ i === 0 ? "rounded-tl-xl" : ""} ${i === arr.length - 1 ? "rounded-tr-xl" : ""}`}> {h} </th> ))}
-                </tr>
-              </thead>
-              <tbody>
-                {citasFiltradas.length === 0 && !loading ? (
-                  <tr> <td colSpan={7} className="table-empty-message"> {citas.length === 0 ? "No hay citas registradas." : "No hay citas que coincidan con los filtros."} </td> </tr>
-                ) : (
-                  citasFiltradas.map((cita) => (
-                    <tr key={cita.id_evento} className="table-row">
-                      <td className="table-cell">{cita.nombre}</td>
-                      <td className="table-cell">{cita.fecha}</td>
-                      <td className="table-cell">{cita.hora}</td>
-                      <td className="table-cell">{cita.motivo}</td>
-                      <td className="table-cell">
-                        {cita.meetLink ? (
-                          <a 
-                            href={cita.meetLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="meet-link"
-                            title="Abrir Google Meet"
-                          >
-                            📹 Unirse a la reunión
-                          </a>
-                        ) : (
-                          <span className="text-gray-400 dark:text-gray-500 text-xs">Sin enlace</span>
-                        )}
-                      </td>
-                      <td className="table-cell"> <EstadoBadge estado={cita.estado} /> </td>
-                      <td className="table-cell">
-                        {/* Botones de Acciones */}
-                        <div className="action-buttons">
-                          {cita.estado !== "Atendida" && ( <button onClick={() => actualizarEstado(cita.id_evento, "Atendida")} disabled={loading} className="action-button attend-button"> ✓ Atendida </button> )}
-                          {cita.estado !== "Cancelada" && ( <button onClick={() => actualizarEstado(cita.id_evento, "Cancelada")} disabled={loading} className="action-button cancel-button"> ✕ Cancelar </button> )}
-                          {cita.estado !== "Pendiente" && ( <button onClick={() => actualizarEstado(cita.id_evento, "Pendiente")} disabled={loading} className="action-button pending-button"> ⌛ Pendiente </button> )}
-                          <button onClick={() => handleEliminar(cita.id_evento)} disabled={loading} className="action-button delete-button" title="Eliminar Cita"> 🗑️ Eliminar </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          {/* Message Area */}
+          {msg.text && (
+            <div className={`p-3 rounded-lg text-sm font-semibold ${msg.type === 'error' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300' : (msg.type === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300')}`}>
+              {msg.text}
+            </div>
+          )}          {/* Mensaje de Carga o Tabla de Citas */}
+          {loading ? (
+            <div className="loading-message"> Cargando citas... </div>
+          ) : (
+            <div className="table-container">
+              <table className="appointments-table">
+                <thead>
+                  <tr>
+                    {["Nombre", "Fecha", "Hora", "Motivo", "Reunión", "Estado", "Acciones"].map((h, i, arr) => ( <th key={h} className={`table-header ${ i === 0 ? "rounded-tl-xl" : ""} ${i === arr.length - 1 ? "rounded-tr-xl" : ""}`}> {h} </th> ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {citasFiltradas.length === 0 ? (
+                    <tr> <td colSpan={7} className="table-empty-message"> {citas.length === 0 ? "No hay citas registradas." : "No hay citas que coincidan con los filtros."} </td> </tr>
+                  ) : (
+                    citasFiltradas.map((cita) => (
+                      <tr key={cita.id_evento} className="table-row">
+                        <td className="table-cell">{cita.nombre}</td>
+                        <td className="table-cell">{cita.fecha}</td>
+                        <td className="table-cell">{cita.hora}</td>
+                        <td className="table-cell">{cita.motivo}</td>
+                        <td className="table-cell">
+                          {cita.meetLink ? (
+                            <a 
+                              href={cita.meetLink} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="meet-link"
+                              title="Abrir Google Meet"
+                            >
+                              📹 Unirse a la reunión
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Sin enlace</span>
+                          )}
+                        </td>
+                        <td className="table-cell"> <EstadoBadge estado={cita.estado} /> </td>
+                        <td className="table-cell">
+                          {/* Botones de Acciones */}
+                          <div className="action-buttons">
+                            {cita.estado !== "Atendida" && ( <button onClick={() => actualizarEstado(cita.id_evento, "Atendida")} disabled={loading} className="action-button attend-button"> ✓ Atendida </button> )}
+                            {cita.estado !== "Cancelada" && ( <button onClick={() => actualizarEstado(cita.id_evento, "Cancelada")} disabled={loading} className="action-button cancel-button"> ✕ Cancelar </button> )}
+                            {cita.estado !== "Pendiente" && ( <button onClick={() => actualizarEstado(cita.id_evento, "Pendiente")} disabled={loading} className="action-button pending-button"> ⌛ Pendiente </button> )}
+                            <button onClick={() => handleEliminar(cita.id_evento)} disabled={loading} className="action-button delete-button" title="Eliminar Cita"> 🗑️ Eliminar </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
        {/* Basic Styles - Move to global CSS */}
