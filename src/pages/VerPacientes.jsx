@@ -108,6 +108,27 @@ const VerPacientes = () => {
   // ⬇️ Estado para botón "Eliminar"
   const [deletingIds, setDeletingIds] = useState({}); // { [uid]: true }
 
+  // ⬇️ Estados para validación de campos de contacto
+  const [telefonoError, setTelefonoError] = useState("");
+  const [correoError, setCorreoError] = useState("");
+
+  // ⬇️ Validadores para campos de contacto
+  const validarTelefonoGuatemalteco = useCallback((telefono) => {
+    if (!telefono) return true; // Campo opcional
+    // Formato: 8 dígitos que empiezan con 2, 3, 4, 5, 6, 7
+    const regex8Digitos = /^[2-7]\d{7}$/;
+    // Formato internacional: +502 seguido de 8 dígitos
+    const regexInternacional = /^\+502[2-7]\d{7}$/;
+    return regex8Digitos.test(telefono) || regexInternacional.test(telefono);
+  }, []);
+
+  const validarCorreo = useCallback((correo) => {
+    if (!correo) return true; // Campo opcional
+    // Regex estándar para email
+    const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regexCorreo.test(correo);
+  }, []);
+
   // (Función de carga de tabla fetchPacientes sin cambios)
   const fetchPacientes = useCallback(async () => {
     setLoading(true);
@@ -146,6 +167,8 @@ const VerPacientes = () => {
           diagnostico: sigsa.diagnostico || ficha_medica.patologia,
           cie10: sigsa.cie_10 || ficha_medica.cei10,
           terapia: sigsa.terapia || ficha_medica.tipo_terapia,
+          telefono: ficha_medica.telefono || paciente.telefono || null,
+          correo: ficha_medica.correo || paciente.correo || null,
         };
       });
       setRows(mappedData);
@@ -241,6 +264,10 @@ const VerPacientes = () => {
 
   // (Funciones de edición startEdit, cancelEdit - Actualizado para cargar datos de referencia)
   const startEdit = async (row) => {
+    // Limpiar errores previos
+    setTelefonoError("");
+    setCorreoError("");
+    
     const originalIndex = rows.findIndex(r => r.no === row.no);
     setEditId(originalIndex);
     const draftCopy = JSON.parse(JSON.stringify(rows[originalIndex]));
@@ -294,12 +321,27 @@ const VerPacientes = () => {
     setDraft(draftCopy);
   };
   const cancelEdit = () => {
-    setEditId(null); setDraft(null);
+    setEditId(null); 
+    setDraft(null);
+    setTelefonoError("");
+    setCorreoError("");
   };
 
   // (Función de guardado saveEdit - Actualizado con soporte para referidos)
   const saveEdit = async () => {
     if (!draft) return;
+
+    // Validar teléfono y correo si se ingresaron
+    if (draft.telefono && !validarTelefonoGuatemalteco(draft.telefono)) {
+      alert("❌ El formato del teléfono es inválido. Use 8 dígitos (2-7 al inicio) o +502XXXXXXXX");
+      return;
+    }
+
+    if (draft.correo && !validarCorreo(draft.correo)) {
+      alert("❌ El formato del correo electrónico es inválido.");
+      return;
+    }
+
     const payload = {
       uid: draft.uid,
       new_info: {
@@ -307,6 +349,8 @@ const VerPacientes = () => {
         apellido: draft.nombre.split(' ')[1] || '',
         fecha_consulta: draft.fechaConsulta,
         estado_paciente: "Activo",
+        telefono: draft.telefono || null,
+        correo: draft.correo || null,
       },
       sigsa_info: {
         cui: draft.dpi,
@@ -328,6 +372,8 @@ const VerPacientes = () => {
         tipo_consulta: draft.consulta.reconsulta ? "Control" : "Primera vez",
         tipo_terapia: draft.terapia,
         embarazo: draft.embarazo.menor ? "Menor de 14" : "",
+        telefono: draft.telefono || null,
+        correo: draft.correo || null,
         paciente_referido: draft.paciente_referido || false,
         referencia: draft.paciente_referido && draft.refData ? {
           no: draft.refData.no || null,
@@ -347,7 +393,10 @@ const VerPacientes = () => {
       const updated = [...rows];
       updated[editId] = draft;
       setRows(updated);
-      setEditId(null); setDraft(null);
+      setEditId(null); 
+      setDraft(null);
+      setTelefonoError("");
+      setCorreoError("");
     } catch (e) {
       console.error("Error al guardar:", e);
       alert(`Error al guardar: ${e.message}`);
@@ -704,6 +753,77 @@ const VerPacientes = () => {
                       {editing && (
                         <tr className="bg-indigo-50/30 dark:bg-indigo-900/10">
                           <td colSpan={21} className="p-4 border-b border-gray-200 dark:border-gray-700">
+                            {/* Sección de Datos de Contacto */}
+                            <div className="bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-700 p-4 mb-4">
+                              <h4 className="font-bold text-emerald-700 dark:text-emerald-300 mb-3">
+                                📞 Datos de Contacto
+                              </h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-medium mb-1">
+                                    Teléfono
+                                    {telefonoError && (
+                                      <span className="text-red-600 text-xs ml-2">⚠️</span>
+                                    )}
+                                  </label>
+                                  <input
+                                    type="tel"
+                                    value={row.telefono || ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value.replace(/[^\d+]/g, '');
+                                      setDraft({ ...row, telefono: value });
+                                      if (value && !validarTelefonoGuatemalteco(value)) {
+                                        setTelefonoError("⚠️ Formato inválido. Use 8 dígitos (2-7 al inicio) o +502XXXXXXXX");
+                                      } else {
+                                        setTelefonoError("");
+                                      }
+                                    }}
+                                    className={`w-full px-2 py-1 text-sm rounded border ${
+                                      telefonoError
+                                        ? 'border-red-400 dark:border-red-600'
+                                        : 'border-gray-300 dark:border-gray-600'
+                                    } bg-white dark:bg-gray-800`}
+                                    placeholder="8 dígitos o +502XXXXXXXX"
+                                    maxLength={12}
+                                  />
+                                  {telefonoError && (
+                                    <p className="text-xs text-red-600 mt-1">{telefonoError}</p>
+                                  )}
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium mb-1">
+                                    Correo Electrónico
+                                    {correoError && (
+                                      <span className="text-red-600 text-xs ml-2">⚠️</span>
+                                    )}
+                                  </label>
+                                  <input
+                                    type="email"
+                                    value={row.correo || ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      setDraft({ ...row, correo: value });
+                                      if (value && !validarCorreo(value)) {
+                                        setCorreoError("⚠️ Formato de correo electrónico inválido");
+                                      } else {
+                                        setCorreoError("");
+                                      }
+                                    }}
+                                    className={`w-full px-2 py-1 text-sm rounded border ${
+                                      correoError
+                                        ? 'border-red-400 dark:border-red-600'
+                                        : 'border-gray-300 dark:border-gray-600'
+                                    } bg-white dark:bg-gray-800`}
+                                    placeholder="ejemplo@correo.com"
+                                  />
+                                  {correoError && (
+                                    <p className="text-xs text-red-600 mt-1">{correoError}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Sección de Paciente Referido */}
                             <div className="bg-white dark:bg-gray-800 rounded-lg border border-indigo-200 dark:border-indigo-700 p-4">
                               <div className="flex items-center justify-between mb-3">
                                 <h4 className="font-bold text-indigo-700 dark:text-indigo-300">
@@ -906,6 +1026,16 @@ const VerPacientes = () => {
                   <p><strong>Estado Civil:</strong> {modalData.ficha?.estado_civil || 'N/A'}</p>
                   <p><strong>Paciente Referido:</strong> {modalData.ficha?.paciente_referido ? 'Sí' : 'No'}</p>
                   <p><strong>Tipo de Terapia:</strong> {view.terapia || modalData.ficha?.tipo_terapia || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mb-3 pb-2 border-b border-indigo-200 dark:border-indigo-800">
+                  📞 Datos de Contacto
+                </h4>
+                <div className="space-y-2">
+                  <p><strong>Teléfono:</strong> {view.telefono || modalData.ficha?.telefono || modalData.paciente?.telefono || 'N/A'}</p>
+                  <p><strong>Correo Electrónico:</strong> {view.correo || modalData.ficha?.correo || modalData.paciente?.correo || 'N/A'}</p>
                 </div>
               </div>
             </div>
