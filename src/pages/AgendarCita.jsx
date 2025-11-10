@@ -2,13 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { crearCita } from '../services/api';
-
-// ⚠️ Reemplazar por el UID real desde tu AuthContext cuando lo tengas
-const USER_UID_PLACEHOLDER = "USER_ID_FROM_LOGIN";
+import { useAuth } from '../context/AuthContext';
 
 export default function AgendarCita() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   // Helpers de fecha/hora mínima (futuro)
   const todayYYYYMMDD = (() => {
@@ -52,13 +51,13 @@ export default function AgendarCita() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Combina fecha (YYYY-MM-DD) y hora (HH:MM) a ISO 8601 (UTC)
+  // Combina fecha (YYYY-MM-DD) y hora (HH:MM) a formato ISO pero SIN conversión UTC
   const combineDateTimeISO = (dateStr, timeStr) => {
     if (!dateStr || !timeStr) return null;
     try {
-      const localDate = new Date(`${dateStr}T${timeStr}:00`);
-      if (isNaN(localDate.getTime())) return null;
-      return localDate.toISOString();
+      // Simplemente combinar en formato ISO sin conversión a UTC
+      // Formato: YYYY-MM-DDTHH:MM:SS
+      return `${dateStr}T${timeStr}:00`;
     } catch {
       return null;
     }
@@ -95,25 +94,67 @@ export default function AgendarCita() {
       return;
     }
 
-    // 🚚 Payload (sin fecha fin ni zona horaria)
+    // ✅ Validar que haya usuario autenticado
+    if (!user) {
+      setMsg('❌ No se pudo identificar al usuario. Por favor, inicie sesión nuevamente.');
+      return;
+    }
+
+    // Obtener el UID del usuario (puede venir en diferentes propiedades)
+    const userUID = user.id;
+    
+    if (!userUID) {
+      if (import.meta.env.DEV) {
+        console.error('⚠️ El objeto user no tiene UID:', user);
+      }
+      setMsg('❌ No se pudo obtener el identificador del usuario. Intente cerrar sesión y volver a ingresar.');
+      return;
+    }
+    
+    if (import.meta.env.DEV) {
+      console.log('✅ UID del usuario que se usará:', userUID);
+    }
+
+    // 🚚 Payload completo según el formato del backend
+    // Calcular fecha fin (1 hora después del inicio)
+    const fechaFinISO = (() => {
+      // Parsear la fecha y hora de inicio
+      const [datePart, timePart] = fechaInicioISO.split('T');
+      const [hours, minutes] = timePart.split(':');
+      const horaFin = parseInt(hours, 10) + 1;
+      
+      // Formatear la hora fin con padding
+      const horaFinStr = String(horaFin).padStart(2, '0');
+      return `${datePart}T${horaFinStr}:${minutes}:00`;
+    })();
+
     const payload = {
-      uid: USER_UID_PLACEHOLDER,
-      nombre: formData.nombre.trim(),
-      apellido: formData.apellido.trim(),
-      correo: formData.correo.trim(),
+      uid: userUID, // UID del usuario autenticado
       nombre_evento: formData.nombre_evento.trim(),
       descripcion_evento: formData.descripcion_evento.trim(),
       fecha_y_hora_inicio: fechaInicioISO,
+      fecha_y_hora_fin: fechaFinISO,
+      zona_horaria: 'America/Guatemala',
+      asistentes: [formData.correo.trim()], // El correo del paciente como asistente
     };
 
     try {
       setLoading(true);
-      console.log('Enviando Payload Cita:', JSON.stringify(payload, null, 2));
+      
+      if (import.meta.env.DEV) {
+        console.log('📤 Enviando Payload Cita:', JSON.stringify(payload, null, 2));
+      }
+      
       const response = await crearCita(payload);
       if (response && response.success === false) {
         throw new Error(response.error || 'Error desconocido desde la API al crear cita.');
       }
-      setMsg('✅ ¡Cita agendada correctamente!');
+      
+      if (import.meta.env.DEV) {
+        console.log('✅ Cita creada exitosamente:', response);
+      }
+      
+      setMsg('✅ ¡Cita agendada correctamente! Te redirigiremos en un momento...');
       // Limpiar y regresar
       setFormData({
         nombre: '',
@@ -126,8 +167,42 @@ export default function AgendarCita() {
       });
       setTimeout(() => navigate('/'), 2000);
     } catch (err) {
-      console.error('Error al agendar cita:', err);
-      setMsg(`❌ Error al agendar: ${err.message}`);
+      if (import.meta.env.DEV) {
+        console.error('❌ Error al agendar cita:', err);
+      }
+      
+      // Mensajes de error más amigables
+      let errorMessage = err.message || 'Error desconocido';
+      
+      // Detectar errores específicos y mostrar mensajes amigables
+      if (errorMessage.includes('ya está ocupado')) {
+        // Extraer las fechas del mensaje si es posible
+        const fechaMatch = errorMessage.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+        if (fechaMatch) {
+          // Parsear la fecha como hora local (sin conversión UTC)
+          const timePart = fechaMatch[1].split('T')[1];
+          const [hours, minutes] = timePart.split(':');
+          const horaNum = parseInt(hours, 10);
+          const minutos = minutes.padStart(2, '0');
+          
+          // Formatear hora en AM/PM
+          const periodo = horaNum >= 12 ? 'p. m.' : 'a. m.';
+          const hora12 = horaNum === 0 ? 12 : horaNum > 12 ? horaNum - 12 : horaNum;
+          const horaFormato = `${String(hora12).padStart(2, '0')}:${minutos} ${periodo}`;
+          
+          setMsg(`❌ Lo sentimos, el horario de las ${horaFormato} ya está ocupado. Por favor, selecciona otro horario.`);
+        } else {
+          setMsg('❌ Lo sentimos, el horario seleccionado ya está ocupado. Por favor, elige otro horario disponible.');
+        }
+      } else if (errorMessage.includes('Faltan campos requeridos')) {
+        setMsg('❌ Hay información faltante. Por favor, verifica que todos los campos estén completos.');
+      } else if (errorMessage.includes('credenciales') || errorMessage.includes('autenticación')) {
+        setMsg('❌ Sesión expirada. Por favor, cierra sesión y vuelve a iniciar sesión.');
+      } else if (errorMessage.includes('conexión') || errorMessage.includes('network')) {
+        setMsg('❌ Error de conexión. Verifica tu internet e intenta nuevamente.');
+      } else {
+        setMsg(`❌ No se pudo agendar la cita: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
     }

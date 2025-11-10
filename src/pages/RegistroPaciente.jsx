@@ -90,14 +90,35 @@ export default function RegistroPaciente() {
     tipo_terapia: "",
     embarazo: "",
     paciente_referido: false,
+    telefono: "",
+    correo: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [showDPI, setShowDPI] = useState(false);
+  const [telefonoError, setTelefonoError] = useState("");
+  const [correoError, setCorreoError] = useState("");
 
   // Max permitido en el datepicker: hoy - 1 año
   const maxDOB = useMemo(() => getOneYearAgoYMD(), []);
+
+  // 🔽 Validadores para campos de contacto
+  const validarTelefonoGuatemalteco = useCallback((telefono) => {
+    if (!telefono) return true; // Campo opcional
+    // Formato: 8 dígitos que empiezan con 2, 3, 4, 5, 6, 7
+    const regex8Digitos = /^[2-7]\d{7}$/;
+    // Formato internacional: +502 seguido de 8 dígitos
+    const regexInternacional = /^\+502[2-7]\d{7}$/;
+    return regex8Digitos.test(telefono) || regexInternacional.test(telefono);
+  }, []);
+
+  const validarCorreo = useCallback((correo) => {
+    if (!correo) return true; // Campo opcional
+    // Regex estándar para email
+    const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regexCorreo.test(correo);
+  }, []);
 
   // 🔽 Datos de la sección "Paciente referido" (inline)
   const [refData, setRefData] = useState({
@@ -141,13 +162,34 @@ export default function RegistroPaciente() {
         }
       }
 
+      if (key === "telefono") {
+        // Limpiar espacios y permitir solo números y el símbolo +
+        value = (value || "").replace(/[^\d+]/g, "");
+        
+        // Validar formato guatemalteco
+        if (value && !validarTelefonoGuatemalteco(value)) {
+          setTelefonoError("⚠️ Formato inválido. Use 8 dígitos (2-7 al inicio) o +502XXXXXXXX");
+        } else {
+          setTelefonoError("");
+        }
+      }
+
+      if (key === "correo") {
+        // Validar formato de correo
+        if (value && !validarCorreo(value)) {
+          setCorreoError("⚠️ Formato de correo electrónico inválido");
+        } else {
+          setCorreoError("");
+        }
+      }
+
       setForm((prev) => {
         const next = { ...prev, [key]: value };
         if (key === "sexo" && value !== "M") next.embarazo = "";
         return next;
       });
     },
-    []
+    [validarTelefonoGuatemalteco, validarCorreo]
   );
 
   const handleFechaNacimiento = useCallback(
@@ -229,6 +271,17 @@ export default function RegistroPaciente() {
       }
     }
 
+    // Validar teléfono y correo si se ingresaron
+    if (form.telefono && !validarTelefonoGuatemalteco(form.telefono)) {
+      setMsg("❌ El formato del teléfono es inválido. Use 8 dígitos (2-7 al inicio) o +502XXXXXXXX");
+      return;
+    }
+
+    if (form.correo && !validarCorreo(form.correo)) {
+      setMsg("❌ El formato del correo electrónico es inválido.");
+      return;
+    }
+
     setLoading(true);
     try {
       const nowISO = new Date().toISOString();
@@ -246,6 +299,8 @@ export default function RegistroPaciente() {
           apellido: form.apellido.trim() || null,
           fecha_consulta: nowISO,
           estado_paciente: "Activo",
+          telefono: form.telefono || null,
+          correo: form.correo || null,
         },
         sigsa_info: {
           fecha_consulta: nowISO,
@@ -290,6 +345,8 @@ export default function RegistroPaciente() {
               : null,
           tipo_terapia: form.tipo_terapia || null,
           embarazo: form.sexo === "M" ? form.embarazo || null : null,
+          telefono: form.telefono || null,
+          correo: form.correo || null,
           referencia:
             form.paciente_referido
               ? {
@@ -486,6 +543,52 @@ export default function RegistroPaciente() {
                   <option value="Xecococh" />
                   <option value="Chuisactol" />
                 </datalist>
+              </div>
+
+              <div>
+                <label htmlFor="telefono" className="form-label">
+                  Teléfono
+                  {telefonoError && (
+                    <span className="text-red-600 text-xs ml-2">⚠️</span>
+                  )}
+                </label>
+                <input
+                  id="telefono"
+                  value={form.telefono}
+                  onChange={handleChange("telefono")}
+                  className={`form-input ${
+                    telefonoError ? 'border-red-400 focus:border-red-500' : ''
+                  }`}
+                  placeholder="8 dígitos o +502XXXXXXXX"
+                  inputMode="numeric"
+                  maxLength={12}
+                />
+                {telefonoError && (
+                  <p className="text-xs text-red-600 mt-1">{telefonoError}</p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="correo" className="form-label">
+                  Correo Electrónico
+                  {correoError && (
+                    <span className="text-red-600 text-xs ml-2">⚠️</span>
+                  )}
+                </label>
+                <input
+                  id="correo"
+                  type="email"
+                  value={form.correo}
+                  onChange={handleChange("correo")}
+                  className={`form-input ${
+                    correoError ? 'border-red-400 focus:border-red-500' : ''
+                  }`}
+                  placeholder="ejemplo@correo.com"
+                  autoComplete="off"
+                />
+                {correoError && (
+                  <p className="text-xs text-red-600 mt-1">{correoError}</p>
+                )}
               </div>
             </div>
           </fieldset>
