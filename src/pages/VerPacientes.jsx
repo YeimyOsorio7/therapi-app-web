@@ -207,9 +207,9 @@ const VerPacientes = () => {
       console.log("📋 Ficha médica recibida:", fichaData);
 
       setModalData({
-        sigsa: sigsaData,
-        ficha: fichaData,
-        paciente: pacienteData,
+        sigsa: sigsaData?.data || sigsaData,
+        ficha: fichaData?.data || fichaData,
+        paciente: pacienteData?.data || pacienteData,
         loading: false,
         error: null
       });
@@ -1006,26 +1006,11 @@ const VerPacientes = () => {
                   Datos Básicos del Paciente
                 </h4>
                 <div className="space-y-2">
-                  <p><strong>UID:</strong> {view.uid || modalData.paciente?.uid || 'N/A'}</p>
-                  <p><strong>Nombre Completo:</strong> {view.nombre || `${modalData.paciente?.nombre || ''} ${modalData.paciente?.apellido || ''}`.trim() || 'N/A'}</p>
+                  <p><strong>Nombre:</strong> {modalData.paciente?.nombre || view.nombre?.split(' ')[0] || 'N/A'}</p>
+                  <p><strong>Apellido:</strong> {modalData.paciente?.apellido || view.nombre?.split(' ').slice(1).join(' ') || 'N/A'}</p>
                   <p><strong>Estado:</strong> {modalData.paciente?.estado_paciente || 'N/A'}</p>
-                  <p><strong>Fecha de Consulta:</strong> {view.fechaConsulta || modalData.paciente?.fecha_consulta || 'N/A'}</p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mb-3 pb-2 border-b border-indigo-200 dark:border-indigo-800">
-                  Ficha Médica
-                </h4>
-                <div className="space-y-2">
-                  <p><strong>DPI/CUI:</strong> {view.dpi || modalData.ficha?.cui || 'N/A'}</p>
-                  <p><strong>Patología:</strong> {view.diagnostico || modalData.ficha?.patologia || 'N/A'}</p>
-                  <p><strong>CIE-10:</strong> {view.cie10 || modalData.ficha?.cei10 || 'N/A'}</p>
-                  <p><strong>Escolaridad:</strong> {modalData.ficha?.escolaridad || 'N/A'}</p>
-                  <p><strong>Ocupación:</strong> {modalData.ficha?.ocupacion || 'N/A'}</p>
-                  <p><strong>Estado Civil:</strong> {modalData.ficha?.estado_civil || 'N/A'}</p>
-                  <p><strong>Paciente Referido:</strong> {modalData.ficha?.paciente_referido ? 'Sí' : 'No'}</p>
-                  <p><strong>Tipo de Terapia:</strong> {view.terapia || modalData.ficha?.tipo_terapia || 'N/A'}</p>
+                  <p><strong>Fecha de Consulta:</strong> {modalData.paciente?.fecha_consulta ? new Date(modalData.paciente.fecha_consulta).toLocaleString('es-GT') : view.fechaConsulta || 'N/A'}</p>
+                  <p><strong>Motivo de Consulta:</strong> {modalData.paciente?.motivo_consulta || 'N/A'}</p>
                 </div>
               </div>
 
@@ -1034,8 +1019,33 @@ const VerPacientes = () => {
                   📞 Datos de Contacto
                 </h4>
                 <div className="space-y-2">
-                  <p><strong>Teléfono:</strong> {view.telefono || modalData.ficha?.telefono || modalData.paciente?.telefono || 'N/A'}</p>
-                  <p><strong>Correo Electrónico:</strong> {view.correo || modalData.ficha?.correo || modalData.paciente?.correo || 'N/A'}</p>
+                  <p><strong>Teléfono:</strong> {modalData.ficha?.telefono || 'No registrado'}</p>
+                  <p><strong>Correo Electrónico:</strong> {modalData.ficha?.correo || 'No registrado'}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mb-3 pb-2 border-b border-indigo-200 dark:border-indigo-800">
+                  Ficha Médica
+                </h4>
+                <div className="space-y-2">
+                  <p><strong>CUI/DPI:</strong> {modalData.ficha?.cui || modalData.sigsa?.cui || 'Sin CUI registrado'}</p>
+                  <p><strong>Edad:</strong> {modalData.ficha?.edad || modalData.sigsa?.edad || 'N/A'}</p>
+                  <p><strong>Género:</strong> {
+                    (modalData.ficha?.genero || modalData.sigsa?.genero) === 'M' ? 'Masculino' : 
+                    (modalData.ficha?.genero || modalData.sigsa?.genero) === 'F' ? 'Femenino' : 'N/A'
+                  }</p>
+                  <p><strong>Patología:</strong> {modalData.ficha?.patologia || 'N/A'}</p>
+                  <p><strong>CIE-10:</strong> {modalData.ficha?.cei10 || 'N/A'}</p>
+                  <p><strong>Municipio:</strong> {modalData.ficha?.municipio || modalData.sigsa?.municipio || 'N/A'}</p>
+                  <p><strong>Aldea:</strong> {modalData.ficha?.aldea || modalData.sigsa?.aldea || 'N/A'}</p>
+                  <p><strong>Escolaridad:</strong> {modalData.ficha?.escolaridad || 'N/A'}</p>
+                  <p><strong>Estado Civil:</strong> {modalData.ficha?.estado_civil || 'N/A'}</p>
+                  <p><strong>Ocupación:</strong> {modalData.ficha?.ocupacion || 'N/A'}</p>
+                  <p><strong>Embarazo:</strong> {modalData.ficha?.embarazo || 'No aplica'}</p>
+                  <p><strong>Tipo de Consulta:</strong> {modalData.ficha?.tipo_consulta || modalData.sigsa?.consulta || 'N/A'}</p>
+                  <p><strong>Tipo de Terapia:</strong> {modalData.ficha?.tipo_terapia || modalData.sigsa?.terapia || 'N/A'}</p>
+                  <p><strong>Paciente Referido:</strong> {modalData.ficha?.paciente_referido ? 'Sí' : 'No'}</p>
                 </div>
               </div>
             </div>
@@ -1046,24 +1056,23 @@ const VerPacientes = () => {
                 Datos SIGSA
               </h4>
               <div className="space-y-2">
-                <p><strong>DPI/CUI:</strong> {view.dpi || modalData.sigsa?.cui || 'N/A'}</p>
-                <p><strong>Fecha de Nacimiento:</strong> {view.nacimiento || modalData.sigsa?.fecha_nacimiento || 'N/A'}</p>
-                <p><strong>Edad:</strong> {view.edad || modalData.sigsa?.edad || 'N/A'}</p>
-                <p>
-                  <strong>Sexo:</strong>{" "}
-                  {view.sexo === "M" || modalData.sigsa?.genero === "M"
-                    ? "Hombre"
-                    : view.sexo === "F" || modalData.sigsa?.genero === "F"
-                    ? "Mujer"
-                    : 'N/A'}
-                </p>
-                <p><strong>Municipio:</strong> {view.municipio || modalData.sigsa?.municipio || 'N/A'}</p>
-                <p><strong>Aldea:</strong> {view.aldea || modalData.sigsa?.aldea || 'N/A'}</p>
-                <p><strong>Diagnóstico:</strong> {view.diagnostico || modalData.sigsa?.diagnostico || 'N/A'}</p>
-                <p><strong>CIE-10:</strong> {view.cie10 || modalData.sigsa?.cie_10 || 'N/A'}</p>
-                <p><strong>Tipo de Consulta:</strong> {modalData.sigsa?.consulta || (view.consulta?.primera ? 'Primera vez' : view.consulta?.reconsulta ? 'Control' : 'N/A')}</p>
-                <p><strong>Terapia:</strong> {view.terapia || modalData.sigsa?.terapia || 'N/A'}</p>
-                <p><strong>Embarazo:</strong> {modalData.sigsa?.embarazo || view.embarazo?.menor ? "Sí" : 'No aplica'}</p>
+                <p><strong>CUI/DPI:</strong> {modalData.sigsa?.cui || 'Sin CUI registrado'}</p>
+                <p><strong>Nombre Completo:</strong> {modalData.sigsa?.nombre ? `${modalData.sigsa.nombre} ${modalData.sigsa.apellido || ''}`.trim() : 'N/A'}</p>
+                <p><strong>Fecha de Nacimiento:</strong> {modalData.sigsa?.fecha_nacimiento || 'N/A'}</p>
+                <p><strong>Edad:</strong> {modalData.sigsa?.edad || 'N/A'}</p>
+                <p><strong>Género:</strong> {modalData.sigsa?.genero === 'M' ? 'Masculino' : modalData.sigsa?.genero === 'F' ? 'Femenino' : 'N/A'}</p>
+                <p><strong>Municipio:</strong> {modalData.sigsa?.municipio || 'N/A'}</p>
+                <p><strong>Aldea:</strong> {modalData.sigsa?.aldea || 'N/A'}</p>
+                <p><strong>Adulto:</strong> {modalData.sigsa?.adulto ? 'Sí' : 'No'}</p>
+                <p><strong>Niño menor de 15:</strong> {modalData.sigsa?.ninio_menor_15 ? 'Sí' : 'No'}</p>
+                <p><strong>Embarazo:</strong> {modalData.sigsa?.embarazo ? 'Sí' : 'No'}</p>
+                <p><strong>Tipo de Consulta:</strong> {modalData.sigsa?.consulta || 'N/A'}</p>
+                <p><strong>Diagnóstico:</strong> {modalData.sigsa?.diagnostico || 'N/A'}</p>
+                <p><strong>CIE-10:</strong> {modalData.sigsa?.cie_10 || 'N/A'}</p>
+                <p><strong>Terapia:</strong> {modalData.sigsa?.terapia || 'N/A'}</p>
+                <p><strong>Tratamiento:</strong> {modalData.sigsa?.tratamiento || 'N/A'}</p>
+                <p><strong>Fecha de Consulta:</strong> {modalData.sigsa?.fecha_consulta ? new Date(modalData.sigsa.fecha_consulta).toLocaleString('es-GT') : 'N/A'}</p>
+                <p><strong>No. Historia Clínica:</strong> {modalData.sigsa?.no_historia_clinica || 'N/A'}</p>
               </div>
             </div>
 
@@ -1075,15 +1084,20 @@ const VerPacientes = () => {
                     📄 Datos de Referencia
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <p><strong>No.:</strong> {modalData.ficha.referencia.no || 'N/A'}</p>
+                    <p><strong>No. Referencia:</strong> {modalData.ficha.referencia.no || 'N/A'}</p>
                     <p><strong>Nombre del Paciente:</strong> {modalData.ficha.referencia.nombre_paciente || 'N/A'}</p>
                     <p><strong>Edad:</strong> {modalData.ficha.referencia.edad || 'N/A'}</p>
                     <p><strong>Fecha de Referencia:</strong> {modalData.ficha.referencia.fecha_referencia || 'N/A'}</p>
                     <p className="md:col-span-2"><strong>Motivo:</strong> {modalData.ficha.referencia.motivo || 'N/A'}</p>
-                    <p><strong>Institución Sel.:</strong> {modalData.ficha.referencia.institucion_sel || 'N/A'}</p>
-                    <p><strong>Institución:</strong> {modalData.ficha.referencia.institucion || 'N/A'}</p>
+                    <p><strong>Institución Seleccionada:</strong> {modalData.ficha.referencia.institucion_sel || 'N/A'}</p>
+                    <p><strong>Nombre Institución:</strong> {modalData.ficha.referencia.institucion || 'N/A'}</p>
                     {modalData.ficha.referencia.obs && (
-                      <p className="md:col-span-2"><strong>Observaciones:</strong> {modalData.ficha.referencia.obs}</p>
+                      <p className="md:col-span-2">
+                        <strong>Observaciones:</strong><br/>
+                        <span className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                          {modalData.ficha.referencia.obs}
+                        </span>
+                      </p>
                     )}
                     {modalData.ficha.referencia.informacion_adicional && (
                       <p className="md:col-span-2">
