@@ -133,8 +133,6 @@ export default function AgendarCita() {
     }
   };
 
-  const minTimeForSelectedDate = formData.fecha_cita === todayYYYYMMDD ? nowHHMM : undefined;
-
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-2xl">

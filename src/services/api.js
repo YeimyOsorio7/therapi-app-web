@@ -14,6 +14,7 @@ const ENDPOINTS = {
   OBTENER_FICHA_MEDICA: "ficha_medica_info",
   ACTUALIZAR_PACIENTE: "update_patient",
   OBTENER_TODOS_PACIENTES: "listar_todos_pacientes",
+  ELIMINAR_PACIENTE: "eliminar_paciente",
 
   // --- Citas ---
   OBTENER_CITAS: "listar_citas_consultorio",
@@ -119,6 +120,12 @@ export function getFichaMedica(payload) {
 
 export function upsertPatient(payload) {
   return postJson(ENDPOINTS.ACTUALIZAR_PACIENTE, payload);
+}
+
+export function deletePatient(uid) {
+  console.log("🗑️ Eliminando paciente con UID:", uid);
+  // El endpoint usa POST, no DELETE
+  return postJson(ENDPOINTS.ELIMINAR_PACIENTE, { uid: uid });
 }
 
 // --- Citas ---

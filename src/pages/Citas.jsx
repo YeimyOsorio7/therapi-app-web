@@ -100,9 +100,16 @@ const Citas = () => {
 
       // --- Map data to table structure ---
       const mappedCitas = rawCitas.map((c, i) => {
-         const { fecha, hora } = parseISOToLocal(c.fecha_y_hora_inicio); // Parse start date/time
+         // Parse date/time from Google Calendar format or custom format
+         const startDateTime = c.start?.dateTime || c.fecha_y_hora_inicio;
+         const endDateTime = c.end?.dateTime || c.fecha_y_hora_fin;
+         const { fecha, hora } = parseISOToLocal(startDateTime);
+         
          // Ensure unique ID, fallback if API doesn't provide one reliably
          const id = c.id_evento || c.id || `temp-${Date.now()}-${i}`;
+
+         // Extract Google Meet link
+         const meetLink = c.hangoutLink || c.conferenceData?.entryPoints?.find(ep => ep.entryPointType === 'video')?.uri || '';
 
          return {
             id_evento: id,
@@ -113,9 +120,10 @@ const Citas = () => {
             hora: hora,
             motivo: c.descripcion_evento || c.description || 'Sin Motivo',
             estado: c.estado_cita || 'Pendiente', // Default to 'Pendiente'
+            meetLink: meetLink, // Add Meet link
             // Keep original ISO dates if needed for updates
-            fecha_y_hora_inicio_iso: c.fecha_y_hora_inicio,
-            fecha_y_hora_fin_iso: c.fecha_y_hora_fin,
+            fecha_y_hora_inicio_iso: startDateTime,
+            fecha_y_hora_fin_iso: endDateTime,
          }
       });
 
@@ -269,12 +277,12 @@ const Citas = () => {
             <table className="appointments-table">
               <thead>
                 <tr>
-                  {["Nombre", "Fecha", "Hora", "Motivo", "Estado", "Acciones"].map((h, i, arr) => ( <th key={h} className={`table-header ${ i === 0 ? "rounded-tl-xl" : ""} ${i === arr.length - 1 ? "rounded-tr-xl" : ""}`}> {h} </th> ))}
+                  {["Nombre", "Fecha", "Hora", "Motivo", "Reunión", "Estado", "Acciones"].map((h, i, arr) => ( <th key={h} className={`table-header ${ i === 0 ? "rounded-tl-xl" : ""} ${i === arr.length - 1 ? "rounded-tr-xl" : ""}`}> {h} </th> ))}
                 </tr>
               </thead>
               <tbody>
                 {citasFiltradas.length === 0 && !loading ? (
-                  <tr> <td colSpan={6} className="table-empty-message"> {citas.length === 0 ? "No hay citas registradas." : "No hay citas que coincidan con los filtros."} </td> </tr>
+                  <tr> <td colSpan={7} className="table-empty-message"> {citas.length === 0 ? "No hay citas registradas." : "No hay citas que coincidan con los filtros."} </td> </tr>
                 ) : (
                   citasFiltradas.map((cita) => (
                     <tr key={cita.id_evento} className="table-row">
@@ -282,6 +290,21 @@ const Citas = () => {
                       <td className="table-cell">{cita.fecha}</td>
                       <td className="table-cell">{cita.hora}</td>
                       <td className="table-cell">{cita.motivo}</td>
+                      <td className="table-cell">
+                        {cita.meetLink ? (
+                          <a 
+                            href={cita.meetLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="meet-link"
+                            title="Abrir Google Meet"
+                          >
+                            📹 Unirse a la reunión
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">Sin enlace</span>
+                        )}
+                      </td>
                       <td className="table-cell"> <EstadoBadge estado={cita.estado} /> </td>
                       <td className="table-cell">
                         {/* Botones de Acciones */}
@@ -325,6 +348,10 @@ const Citas = () => {
           .table-row:hover { background-color: #eff6ff; } .dark .table-row:hover { background-color: #1e3a8a; }
           .table-cell { padding: 0.5rem 1rem; border-bottom: 1px solid #e5e7eb; } .dark .table-cell { border-color: #4b5563; }
           .table-empty-message { padding: 1.5rem 1rem; text-align: center; color: #6b7280; } .dark .table-empty-message { color: #9ca3af; }
+          .meet-link { display: inline-flex; align-items: center; gap: 0.25rem; color: #4f46e5; font-weight: 600; font-size: 0.875rem; text-decoration: none; transition: color 0.2s; }
+          .meet-link:hover { color: #6366f1; text-decoration: underline; }
+          .dark .meet-link { color: #818cf8; }
+          .dark .meet-link:hover { color: #a5b4fc; }
           .action-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
           .action-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); transition: background-color 0.2s; color: white; border: none; cursor: pointer; }
           .action-button:disabled { opacity: 0.5; cursor: not-allowed; }
