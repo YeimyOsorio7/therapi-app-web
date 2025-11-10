@@ -6,6 +6,14 @@ import { upsertPatient } from "../services/api";
 const pad2 = (n) => String(n).padStart(2, "0");
 const formatYMD = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
+// =================== Generador de UID único ===================
+const generateUniqueUID = () => {
+  // Genera un UID único basado en timestamp + random
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 9);
+  return `UID_${timestamp}_${random}`;
+};
+
 // Hoy - 1 año (en hora local, sin usar ISO para evitar desfases)
 const getOneYearAgoYMD = () => {
   const now = new Date();
@@ -101,6 +109,7 @@ export default function RegistroPaciente() {
     institucion: "",
     fecha_referencia: "",
     obs: "",
+    informacion_adicional: "", // 📝 Nuevo campo para información adicional del paciente referido
   });
 
   useEffect(() => {
@@ -121,7 +130,15 @@ export default function RegistroPaciente() {
       setMsg("");
 
       if (key === "cui") {
+        // Solo permitir números y máximo 13 dígitos
         value = (value || "").replace(/\D/g, "").slice(0, 13);
+        
+        // Validar longitud si se ha ingresado algo
+        if (value.length > 0 && value.length < 13) {
+          setMsg("⚠️ El CUI/DPI debe tener exactamente 13 dígitos.");
+        } else if (value.length === 13) {
+          setMsg(""); // Limpiar mensaje cuando tenga 13 dígitos
+        }
       }
 
       setForm((prev) => {
@@ -215,10 +232,12 @@ export default function RegistroPaciente() {
     setLoading(true);
     try {
       const nowISO = new Date().toISOString();
+      const ageNum = parseInt(form.edad, 10);
       const isAdult = ageNum >= 18;
       const isMenor15 = ageNum < 15;
 
-      const uidToSend = isAdult && form.cui ? form.cui : `temp_${Date.now()}`;
+      // ✅ Generar un UID único para cada paciente
+      const uidToSend = generateUniqueUID();
 
       const payload = {
         uid: uidToSend,
@@ -282,6 +301,7 @@ export default function RegistroPaciente() {
                   institucion: refData.institucion || null,
                   fecha_referencia: refData.fecha_referencia || null,
                   obs: refData.obs || null,
+                  informacion_adicional: refData.informacion_adicional || null,
                 }
               : null,
         },
@@ -353,14 +373,30 @@ export default function RegistroPaciente() {
 
               {showDPI ? (
                 <div>
-                  <label htmlFor="cui" className="form-label">CUI / DPI *</label>
+                  <label htmlFor="cui" className="form-label">
+                    CUI / DPI * 
+                    {form.cui && form.cui.length < 13 && (
+                      <span className="text-amber-600 text-xs ml-2">
+                        ({form.cui.length}/13 dígitos)
+                      </span>
+                    )}
+                    {form.cui && form.cui.length === 13 && (
+                      <span className="text-emerald-600 text-xs ml-2">✓</span>
+                    )}
+                  </label>
                   <input
                     id="cui"
-                    placeholder="13 dígitos"
+                    placeholder="13 dígitos numéricos"
                     value={form.cui}
                     onChange={handleChange("cui")}
                     required
-                    className="form-input"
+                    className={`form-input ${
+                      form.cui && form.cui.length > 0 && form.cui.length < 13
+                        ? 'border-amber-400 focus:border-amber-500'
+                        : form.cui && form.cui.length === 13
+                        ? 'border-emerald-400 focus:border-emerald-500'
+                        : ''
+                    }`}
                     inputMode="numeric"
                     maxLength={13}
                     pattern="\d{13}"
@@ -585,6 +621,16 @@ export default function RegistroPaciente() {
                       <div className="sm:col-span-2">
                         <label className="form-label">OBS</label>
                         <textarea className="form-input" rows={3} placeholder="Observaciones" value={refData.obs} onChange={updateRef("obs")} />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="form-label">📝 Información Adicional del Paciente Referido</label>
+                        <textarea 
+                          className="form-input" 
+                          rows={4} 
+                          placeholder="Ingrese cualquier información adicional relevante sobre el paciente referido (antecedentes, situación actual, motivos de la referencia, etc.)" 
+                          value={refData.informacion_adicional} 
+                          onChange={updateRef("informacion_adicional")} 
+                        />
                       </div>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 // src/pages/VerPacientes.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { getAllPacientes, getPacienteInfo, getSigsaInfo, getFichaMedica, upsertPatient } from "../services/api";
+import { getAllPacientes, getPacienteInfo, getSigsaInfo, getFichaMedica, upsertPatient, deletePatient } from "../services/api";
 
 // ⬇️ Importaciones para generar DOCX
 import {
@@ -123,7 +123,7 @@ const VerPacientes = () => {
         return {
           no: index + 1,
           uid: row.uid,
-          historia: ficha_medica.cui || sigsa.cui || row.uid,
+          historia: ficha_medica.historia_clinica || sigsa.historia_clinica || null,
           fechaConsulta: paciente.fecha_consulta || sigsa.fecha_consulta,
           nombre: `${paciente.nombre || ''} ${paciente.apellido || ''}`.trim(),
           dpi: sigsa.cui || ficha_medica.cui,
@@ -239,17 +239,65 @@ const VerPacientes = () => {
     setQuery(""); setDesde(""); setHasta(""); setPage(1);
   };
 
-  // (Funciones de edición startEdit, cancelEdit sin cambios)
-  const startEdit = (row) => {
+  // (Funciones de edición startEdit, cancelEdit - Actualizado para cargar datos de referencia)
+  const startEdit = async (row) => {
     const originalIndex = rows.findIndex(r => r.no === row.no);
     setEditId(originalIndex);
-    setDraft(JSON.parse(JSON.stringify(rows[originalIndex])));
+    const draftCopy = JSON.parse(JSON.stringify(rows[originalIndex]));
+    
+    // Cargar información de referencia si existe
+    try {
+      const fichaData = await getFichaMedica({ uid: row.uid });
+      if (fichaData && fichaData.paciente_referido && fichaData.referencia) {
+        draftCopy.paciente_referido = true;
+        draftCopy.refData = {
+          no: fichaData.referencia.no || '',
+          nombre_paciente: fichaData.referencia.nombre_paciente || draftCopy.nombre || '',
+          edad: fichaData.referencia.edad || draftCopy.edad || '',
+          motivo: fichaData.referencia.motivo || '',
+          institucion_sel: fichaData.referencia.institucion_sel || '',
+          institucion: fichaData.referencia.institucion || '',
+          fecha_referencia: fichaData.referencia.fecha_referencia || '',
+          obs: fichaData.referencia.obs || '',
+          informacion_adicional: fichaData.referencia.informacion_adicional || '',
+        };
+      } else {
+        draftCopy.paciente_referido = false;
+        draftCopy.refData = {
+          no: `${Date.now()}`,
+          nombre_paciente: draftCopy.nombre || '',
+          edad: draftCopy.edad || '',
+          motivo: '',
+          institucion_sel: '',
+          institucion: '',
+          fecha_referencia: new Date().toISOString().slice(0, 10),
+          obs: '',
+          informacion_adicional: '',
+        };
+      }
+    } catch (e) {
+      console.error("Error al cargar datos de referencia:", e);
+      draftCopy.paciente_referido = false;
+      draftCopy.refData = {
+        no: `${Date.now()}`,
+        nombre_paciente: draftCopy.nombre || '',
+        edad: draftCopy.edad || '',
+        motivo: '',
+        institucion_sel: '',
+        institucion: '',
+        fecha_referencia: new Date().toISOString().slice(0, 10),
+        obs: '',
+        informacion_adicional: '',
+      };
+    }
+    
+    setDraft(draftCopy);
   };
   const cancelEdit = () => {
     setEditId(null); setDraft(null);
   };
 
-  // (Función de guardado saveEdit sin cambios)
+  // (Función de guardado saveEdit - Actualizado con soporte para referidos)
   const saveEdit = async () => {
     if (!draft) return;
     const payload = {
@@ -280,6 +328,18 @@ const VerPacientes = () => {
         tipo_consulta: draft.consulta.reconsulta ? "Control" : "Primera vez",
         tipo_terapia: draft.terapia,
         embarazo: draft.embarazo.menor ? "Menor de 14" : "",
+        paciente_referido: draft.paciente_referido || false,
+        referencia: draft.paciente_referido && draft.refData ? {
+          no: draft.refData.no || null,
+          nombre_paciente: draft.refData.nombre_paciente || draft.nombre || null,
+          edad: draft.refData.edad || draft.edad || null,
+          motivo: draft.refData.motivo || null,
+          institucion_sel: draft.refData.institucion_sel || null,
+          institucion: draft.refData.institucion || null,
+          fecha_referencia: draft.refData.fecha_referencia || null,
+          obs: draft.refData.obs || null,
+          informacion_adicional: draft.refData.informacion_adicional || null,
+        } : null,
       }
     };
     try {
@@ -300,25 +360,23 @@ const VerPacientes = () => {
       alert("Este registro no tiene UID válido.");
       return;
     }
-    const ok = window.confirm(`¿Eliminar al paciente "${row.nombre}"? Esta acción marcará el registro como Eliminado.`);
+    const ok = window.confirm(`¿Eliminar al paciente "${row.nombre}"? Esta acción eliminará permanentemente el registro.`);
     if (!ok) return;
 
     try {
       setDeletingIds((m) => ({ ...m, [row.uid]: true }));
 
-      // Soft delete con tu endpoint existente
-      await upsertPatient({
-        uid: row.uid,
-        new_info: {
-          estado_paciente: "Eliminado",
-        },
-      });
+      // Llamar al endpoint DELETE
+      await deletePatient(row.uid);
 
       // Quitar de la UI
       setRows((prev) => prev.filter((r) => r.uid !== row.uid));
+      
+      // Mensaje de éxito
+      alert(`✅ Paciente "${row.nombre}" eliminado correctamente.`);
     } catch (e) {
       console.error("Error al eliminar:", e);
-      alert(`No se pudo eliminar: ${e.message || "Error desconocido."}`);
+      alert(`❌ No se pudo eliminar: ${e.message || "Error desconocido."}`);
     } finally {
       setDeletingIds((m) => {
         const { [row.uid]: _, ...rest } = m;
@@ -341,10 +399,10 @@ const VerPacientes = () => {
 
       const rowsForTable = filtrados.map((r) => ([
         r.no?.toString() || "",
-        r.historia || "",
+        r.historia || "N/A",
         r.fechaConsulta || "",
         r.nombre || "",
-        r.dpi || "",
+        r.dpi || "Menor de edad / Sin DPI",
         r.nacimiento || "",
         (r.edad ?? "").toString(),
         bool(!!r.menorDe15),
@@ -510,15 +568,27 @@ const VerPacientes = () => {
                 ) : (
                   pageRows.map((p) => {
                     const editing = editId === (p.no - 1);
-                    const row = editing ? draft : p;
-                    const isDeleting = !!deletingIds[row.uid];
+                    const row = editing && draft ? draft : p;
+                    const isDeleting = row && row.uid ? !!deletingIds[row.uid] : false;
 
                     return (
-                      <tr key={p.no} className="odd:bg-white even:bg-gray-50 odd:dark:bg-gray-900 even:dark:bg-gray-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-colors">
+                      <React.Fragment key={p.no}>
+                        <tr className="odd:bg-white even:bg-gray-50 odd:dark:bg-gray-900 even:dark:bg-gray-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-colors">
                         {/* Celdas */}
                         <td className="p-3 border-b border-gray-200 dark:border-gray-700 text-center">{row.no}</td>
                         <td className="p-3 border-b border-gray-200 dark:border-gray-700">
-                          {editing ? <input value={row.historia} onChange={(e) => setDraft({ ...row, historia: e.target.value })} className="w-24 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" /> : row.historia}
+                          {editing ? (
+                            <input 
+                              value={row.historia || ''} 
+                              onChange={(e) => setDraft({ ...row, historia: e.target.value })} 
+                              className="w-24 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" 
+                              placeholder="N/A"
+                            />
+                          ) : (
+                            <span className={!row.historia ? "text-gray-400 italic" : ""}>
+                              {row.historia || 'N/A'}
+                            </span>
+                          )}
                         </td>
                         <td className="p-3 border-b border-gray-200 dark:border-gray-700">
                           {editing ? <input value={row.fechaConsulta} onChange={(e) => setDraft({ ...row, fechaConsulta: e.target.value })} placeholder="dd/mm/yyyy" className="w-28 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" /> : row.fechaConsulta}
@@ -527,7 +597,18 @@ const VerPacientes = () => {
                           {editing ? <textarea value={row.nombre} onChange={(e) => setDraft({ ...row, nombre: e.target.value })} className="w-56 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" /> : row.nombre}
                         </td>
                         <td className="p-3 border-b border-gray-200 dark:border-gray-700">
-                          {editing ? <input value={row.dpi} onChange={(e) => setDraft({ ...row, dpi: e.target.value })} className="w-28 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" /> : row.dpi}
+                          {editing ? (
+                            <input 
+                              value={row.dpi || ''} 
+                              onChange={(e) => setDraft({ ...row, dpi: e.target.value })} 
+                              className="w-28 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" 
+                              placeholder="Sin DPI"
+                            />
+                          ) : (
+                            <span className={!row.dpi ? "text-gray-400 italic text-xs" : ""}>
+                              {row.dpi || 'Menor de edad / Sin DPI'}
+                            </span>
+                          )}
                         </td>
                         <td className="p-3 border-b border-gray-200 dark:border-gray-700">
                           {editing ? <input value={row.nacimiento} onChange={(e) => setDraft({ ...row, nacimiento: e.target.value })} placeholder="dd/mm/yyyy" className="w-28 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" /> : row.nacimiento}
@@ -619,6 +700,146 @@ const VerPacientes = () => {
                           )}
                         </td>
                       </tr>
+                      {/* Fila expandible para editar datos de referencia */}
+                      {editing && (
+                        <tr className="bg-indigo-50/30 dark:bg-indigo-900/10">
+                          <td colSpan={21} className="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <div className="bg-white dark:bg-gray-800 rounded-lg border border-indigo-200 dark:border-indigo-700 p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-bold text-indigo-700 dark:text-indigo-300">
+                                  📄 Datos de Referencia
+                                </h4>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={row.paciente_referido || false}
+                                    onChange={(e) => setDraft({ ...row, paciente_referido: e.target.checked })}
+                                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                  />
+                                  <span className="text-sm font-medium">Paciente Referido</span>
+                                </label>
+                              </div>
+                              
+                              {row.paciente_referido && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+                                  <div>
+                                    <label className="block text-xs font-medium mb-1">No.</label>
+                                    <input
+                                      value={row.refData?.no || ''}
+                                      readOnly
+                                      className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium mb-1">Nombre del Paciente</label>
+                                    <input
+                                      value={row.refData?.nombre_paciente || ''}
+                                      onChange={(e) => setDraft({ 
+                                        ...row, 
+                                        refData: { ...row.refData, nombre_paciente: e.target.value }
+                                      })}
+                                      className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium mb-1">Edad</label>
+                                    <input
+                                      value={row.refData?.edad || ''}
+                                      onChange={(e) => setDraft({ 
+                                        ...row, 
+                                        refData: { ...row.refData, edad: e.target.value }
+                                      })}
+                                      className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium mb-1">Fecha de Referencia</label>
+                                    <input
+                                      type="date"
+                                      value={row.refData?.fecha_referencia || ''}
+                                      onChange={(e) => setDraft({ 
+                                        ...row, 
+                                        refData: { ...row.refData, fecha_referencia: e.target.value }
+                                      })}
+                                      className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                    />
+                                  </div>
+                                  <div className="sm:col-span-2">
+                                    <label className="block text-xs font-medium mb-1">Motivo</label>
+                                    <input
+                                      value={row.refData?.motivo || ''}
+                                      onChange={(e) => setDraft({ 
+                                        ...row, 
+                                        refData: { ...row.refData, motivo: e.target.value }
+                                      })}
+                                      className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                      placeholder="Describa el motivo de la referencia"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium mb-1">Institución</label>
+                                    <select
+                                      value={row.refData?.institucion_sel || ''}
+                                      onChange={(e) => setDraft({ 
+                                        ...row, 
+                                        refData: { ...row.refData, institucion_sel: e.target.value }
+                                      })}
+                                      className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                    >
+                                      <option value="">Seleccionar...</option>
+                                      <option value="MP">MP</option>
+                                      <option value="PGN">PGN</option>
+                                      <option value="JUZGADO DE NIÑEZ">JUZGADO DE NIÑEZ</option>
+                                      <option value="JUZGADO DE PAZ">JUZGADO DE PAZ</option>
+                                      <option value="JUZGADO DE FAMILIA">JUZGADO DE FAMILIA</option>
+                                      <option value="HOSPITAL NACIONAL">HOSPITAL NACIONAL</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium mb-1">Nombre Institución</label>
+                                    <input
+                                      value={row.refData?.institucion || ''}
+                                      onChange={(e) => setDraft({ 
+                                        ...row, 
+                                        refData: { ...row.refData, institucion: e.target.value }
+                                      })}
+                                      className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                      placeholder="Nombre específico (opcional)"
+                                    />
+                                  </div>
+                                  <div className="sm:col-span-2 lg:col-span-4">
+                                    <label className="block text-xs font-medium mb-1">Observaciones</label>
+                                    <textarea
+                                      value={row.refData?.obs || ''}
+                                      onChange={(e) => setDraft({ 
+                                        ...row, 
+                                        refData: { ...row.refData, obs: e.target.value }
+                                      })}
+                                      rows={2}
+                                      className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                      placeholder="Observaciones generales"
+                                    />
+                                  </div>
+                                  <div className="sm:col-span-2 lg:col-span-4">
+                                    <label className="block text-xs font-medium mb-1">📝 Información Adicional del Paciente Referido</label>
+                                    <textarea
+                                      value={row.refData?.informacion_adicional || ''}
+                                      onChange={(e) => setDraft({ 
+                                        ...row, 
+                                        refData: { ...row.refData, informacion_adicional: e.target.value }
+                                      })}
+                                      rows={3}
+                                      className="w-full px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                      placeholder="Información adicional relevante sobre el paciente referido (antecedentes, situación actual, motivos de la referencia, etc.)"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })
                 )}
@@ -715,6 +936,37 @@ const VerPacientes = () => {
                 <p><strong>Embarazo:</strong> {modalData.sigsa?.embarazo || view.embarazo?.menor ? "Sí" : 'No aplica'}</p>
               </div>
             </div>
+
+            {/* Sección de Referencia (si aplica) */}
+            {modalData.ficha?.paciente_referido && modalData.ficha?.referencia && (
+              <div className="md:col-span-2">
+                <div className="rounded-lg border border-indigo-200 dark:border-indigo-700 bg-indigo-50/60 dark:bg-indigo-900/20 p-4">
+                  <h4 className="font-bold text-indigo-700 dark:text-indigo-300 mb-3 pb-2 border-b border-indigo-200 dark:border-indigo-800">
+                    📄 Datos de Referencia
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <p><strong>No.:</strong> {modalData.ficha.referencia.no || 'N/A'}</p>
+                    <p><strong>Nombre del Paciente:</strong> {modalData.ficha.referencia.nombre_paciente || 'N/A'}</p>
+                    <p><strong>Edad:</strong> {modalData.ficha.referencia.edad || 'N/A'}</p>
+                    <p><strong>Fecha de Referencia:</strong> {modalData.ficha.referencia.fecha_referencia || 'N/A'}</p>
+                    <p className="md:col-span-2"><strong>Motivo:</strong> {modalData.ficha.referencia.motivo || 'N/A'}</p>
+                    <p><strong>Institución Sel.:</strong> {modalData.ficha.referencia.institucion_sel || 'N/A'}</p>
+                    <p><strong>Institución:</strong> {modalData.ficha.referencia.institucion || 'N/A'}</p>
+                    {modalData.ficha.referencia.obs && (
+                      <p className="md:col-span-2"><strong>Observaciones:</strong> {modalData.ficha.referencia.obs}</p>
+                    )}
+                    {modalData.ficha.referencia.informacion_adicional && (
+                      <p className="md:col-span-2">
+                        <strong>📝 Información Adicional:</strong><br/>
+                        <span className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                          {modalData.ficha.referencia.informacion_adicional}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center p-8 text-gray-500 dark:text-gray-400">
