@@ -240,7 +240,7 @@ export default function AuthLogin() {
             </button>
 
             <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-              ¿No tienes cuenta?{" "}
+              ¿No tienes cuenta?
               <Link
                 to="/registro"
                 className="font-semibold text-indigo-600 dark:text-indigo-300 hover:underline"

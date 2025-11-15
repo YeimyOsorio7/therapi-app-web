@@ -12,20 +12,25 @@ function loadHistory(userId) {
   } catch { return []; }
 }
 function saveHistory(userId, messages) {
-  try { localStorage.setItem(`chat_history:${userId}`, JSON.stringify(messages)); } catch {}
+  try { localStorage.setItem(`chat_history:${userId}`, JSON.stringify(messages)); } catch { console.error("Error saving chat history:", userId); }
 }
 function loadProfile(userId) {
   try {
     const raw = localStorage.getItem(`chat_profile:${userId}`);
     return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
+  } catch {
+    console.error("Error loading profile:", userId);
+    return {};
+  }
 }
 function saveProfile(userId, profile) {
   try {
     localStorage.setItem(`chat_profile:${userId}`, JSON.stringify({
       ...profile, ultimaActualizacion: new Date().toISOString(),
     }));
-  } catch {}
+  } catch {
+    console.error("Error saving profile:", userId);
+  }
 }
 
 // detectar datos básicos
@@ -41,7 +46,9 @@ function clearUserHistory(userId) {
   try {
     localStorage.removeItem(`chat_history:${userId}`);
     localStorage.removeItem(`chat_profile:${userId}`);
-  } catch {}
+  } catch {
+    console.error("Error clearing user history:", userId);
+  }
 }
 async function sendConversationReport(userId, options = {}) {
   const { useBeacon = false, keepalive = false } = options;
@@ -57,7 +64,9 @@ async function sendConversationReport(userId, options = {}) {
         ...(keepalive && { keepalive: true }),
       });
     }
-  } catch {}
+  } catch {
+    console.error("Error sending conversation report for user:", userId);
+  }
 }
 
 const ChatBot = () => {
@@ -140,8 +149,15 @@ const ChatBot = () => {
       });
       if (!res.ok) {
         let detail = `E:${res.status}`;
-        try { const j = await res.json(); detail += `-${j.error || j.message || JSON.stringify(j)}`; }
-        catch { try { detail += `-${await res.text()}`; } catch {} }
+        try {
+          const j = await res.json(); detail += `-${j.error || j.message || JSON.stringify(j)}`;
+        } catch {
+          try {
+            detail += `-${await res.text()}`;
+          } catch {
+            detail += '-unknown error';
+          }
+        }
         throw new Error(detail);
       }
       const data = await res.json();
