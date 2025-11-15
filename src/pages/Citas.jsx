@@ -1,50 +1,55 @@
 // src/pages/Citas.jsx
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { listarCitas, actualizarCita, eliminarCita } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 /* ========================= Utils ========================= */
 // Helper to safely parse date/time strings (ISO format expected from API)
 const parseISOToLocal = (isoString) => {
-  if (!isoString) return { fecha: 'N/A', hora: 'N/A' };
+  if (!isoString) return { fecha: "N/A", hora: "N/A" };
   try {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) throw new Error("Invalid date");
-    const fecha = date.toISOString().split('T')[0]; // YYYY-MM-DD
-    const hora = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); // HH:MM (local)
+    const fecha = date.toISOString().split("T")[0]; // YYYY-MM-DD
+    const hora = date.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }); // HH:MM (local)
     return { fecha, hora };
   } catch (e) {
     console.warn("Could not parse date:", isoString, e);
-    return { fecha: 'Invalid Date', hora: 'N/A' };
+    return { fecha: "Invalid Date", hora: "N/A" };
   }
 };
 
 // Helper to create ISO string from local date/time for updates
 const toDateTimeISO = (fecha, hora) => {
-    if (!fecha || !hora) return null;
-    try {
-        const localDate = new Date(`${fecha}T${hora}:00`);
-        if (isNaN(localDate.getTime())) return null;
-        return localDate.toISOString();
-    } catch {
-        return null;
-    }
+  if (!fecha || !hora) return null;
+  try {
+    const localDate = new Date(`${fecha}T${hora}:00`);
+    if (isNaN(localDate.getTime())) return null;
+    return localDate.toISOString();
+  } catch {
+    return null;
+  }
 };
-
 
 const EstadoBadge = ({ estado }) => {
   // Determine color based on estado, fallback for unknown states
   let cls = "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"; // Default/Unknown
-  const lowerEstado = estado?.toLowerCase() || '';
+  const lowerEstado = estado?.toLowerCase() || "";
   if (lowerEstado === "pendiente") {
-    cls = "bg-amber-100 text-amber-800 dark:bg-amber-600/50 dark:text-amber-100";
+    cls =
+      "bg-amber-100 text-amber-800 dark:bg-amber-600/50 dark:text-amber-100";
   } else if (lowerEstado === "atendida") {
-    cls = "bg-emerald-100 text-emerald-800 dark:bg-emerald-600/50 dark:text-emerald-100";
+    cls =
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-600/50 dark:text-emerald-100";
   } else if (lowerEstado === "cancelada") {
     cls = "bg-rose-100 text-rose-800 dark:bg-rose-600/50 dark:text-rose-100";
   }
   return (
     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${cls}`}>
-      {estado || 'Desconocido'}
+      {estado || "Desconocido"}
     </span>
   );
 };
@@ -55,8 +60,12 @@ const Citas = () => {
   const [loading, setLoading] = useState(true); // Start loading initially
   const [msg, setMsg] = useState({ text: "", type: "info" }); // Use object for message + type
 
-  // Placeholder - Replace with actual logged-in psychologist's ID
-  const USER_UID = "PSYCHOLOGIST_USER_ID";
+  // User UID - Replace with actual auth context or prop as needed
+  const { user, logout } = useAuth();
+  const userId = user?.user_id || user?.id || null;
+  console.log("AUTH USER:", user);
+  console.log("Logout function:", logout);
+  console.log("USER UID:", userId);
 
   // Filtros state (no change)
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -76,62 +85,72 @@ const Citas = () => {
       // Check if the response itself is the array
       if (Array.isArray(apiResponse)) {
         rawCitas = apiResponse;
-      // Check if the response is an object with a 'citas' array property
+        // Check if the response is an object with a 'citas' array property
       } else if (apiResponse && Array.isArray(apiResponse.citas)) {
         rawCitas = apiResponse.citas;
-      // Check if the response is an object with a 'data' array property (common wrapper)
+        // Check if the response is an object with a 'data' array property (common wrapper)
       } else if (apiResponse && Array.isArray(apiResponse.data)) {
         rawCitas = apiResponse.data;
       }
       // Add more checks here if your API might return data differently
       else {
-          console.warn("Unexpected data structure from listarCitas:", apiResponse);
-          // Attempt to use the response directly if it's an object (edge case)
-          // Or throw an error if it's definitely wrong
-         if (typeof apiResponse === 'object' && apiResponse !== null) {
-             // Maybe it's a single appointment object? Or pagination? Handle specific cases.
-             // For now, assume it's an error or empty
-              console.error("Received object but expected array for appointments.");
-               rawCitas = []; // Treat as empty
-         } else {
-            throw new Error("Formato de respuesta inesperado al listar citas.");
-         }
+        console.warn(
+          "Unexpected data structure from listarCitas:",
+          apiResponse
+        );
+        // Attempt to use the response directly if it's an object (edge case)
+        // Or throw an error if it's definitely wrong
+        if (typeof apiResponse === "object" && apiResponse !== null) {
+          // Maybe it's a single appointment object? Or pagination? Handle specific cases.
+          // For now, assume it's an error or empty
+          console.error("Received object but expected array for appointments.");
+          rawCitas = []; // Treat as empty
+        } else {
+          throw new Error("Formato de respuesta inesperado al listar citas.");
+        }
       }
 
       // --- Map data to table structure ---
       const mappedCitas = rawCitas.map((c, i) => {
-         // Parse date/time from Google Calendar format or custom format
-         const startDateTime = c.start?.dateTime || c.fecha_y_hora_inicio;
-         const endDateTime = c.end?.dateTime || c.fecha_y_hora_fin;
-         const { fecha, hora } = parseISOToLocal(startDateTime);
-         
-         // Ensure unique ID, fallback if API doesn't provide one reliably
-         const id = c.id_evento || c.id || `temp-${Date.now()}-${i}`;
+        console.log("Raw Cita Data:", c);
+        // Parse date/time from Google Calendar format or custom format
+        const startDateTime = c.start?.dateTime || c.fecha_inicio;
+        const endDateTime = c.end?.dateTime || c.fecha_fin;
+        const { fecha, hora } = parseISOToLocal(startDateTime);
 
-         // Extract Google Meet link
-         const meetLink = c.hangoutLink || c.conferenceData?.entryPoints?.find(ep => ep.entryPointType === 'video')?.uri || '';
+        // Ensure unique ID, fallback if API doesn't provide one reliably
+        const id = c.id_evento || c.id || `temp-${Date.now()}-${i}`;
 
-         return {
-            id_evento: id,
-            // Use standard properties or fallbacks
-            nombre: c.nombre_evento || c.summary || `Cita ${id.substring(0, 5)}`,
-            email: Array.isArray(c.asistentes) && c.asistentes.length > 0 ? c.asistentes[0] : (c.attendees?.[0]?.email || ''),
-            fecha: fecha,
-            hora: hora,
-            motivo: c.descripcion_evento || c.description || 'Sin Motivo',
-            estado: c.estado_cita || 'Pendiente', // Default to 'Pendiente'
-            meetLink: meetLink, // Add Meet link
-            // Keep original ISO dates if needed for updates
-            fecha_y_hora_inicio_iso: startDateTime,
-            fecha_y_hora_fin_iso: endDateTime,
-         }
+        // Extract Google Meet link
+        const meetLink = c.meet_link || "";
+
+        return {
+          id_evento: id,
+          // Use standard properties or fallbacks
+          nombre: c.nombre_evento || c.summary || `Cita ${id.substring(0, 5)}`,
+          email:
+            Array.isArray(c.asistentes) && c.asistentes.length > 0
+              ? c.asistentes[0]
+              : c.attendees?.[0]?.email || "",
+          fecha: fecha,
+          hora: hora,
+          motivo: c.descripcion_evento || c.description || "Sin Motivo",
+          estado: c.estado_cita || "Pendiente", // Default to 'Pendiente'
+          meetLink: meetLink, // Add Meet link
+          // Keep original ISO dates if needed for updates
+          fecha_inicio: startDateTime,
+          fecha_fin: endDateTime,
+        };
       });
 
       setCitas(mappedCitas);
     } catch (e) {
       console.error("Error fetching citas:", e);
       // Display a user-friendly error message, avoid showing raw JSON/HTML
-      setMsg({ text: `❌ Error al cargar citas: ${e.message || 'Error de conexión.'}`, type: "error" });
+      setMsg({
+        text: `❌ Error al cargar citas: ${e.message || "Error de conexión."}`,
+        type: "error",
+      });
       setCitas([]); // Clear data on error
     } finally {
       setLoading(false);
@@ -145,29 +164,38 @@ const Citas = () => {
 
   // ✅ Function to Update Appointment Status
   const actualizarEstado = async (id_evento, nuevoEstado) => {
-    const citaActual = citas.find(c => c.id_evento === id_evento);
+    const citaActual = citas.find((c) => c.id_evento === id_evento);
     if (!citaActual) {
-        setMsg({ text: "❌ Error: No se encontró la cita para actualizar.", type: "error" });
-        return;
+      setMsg({
+        text: "❌ Error: No se encontró la cita para actualizar.",
+        type: "error",
+      });
+      return;
     }
 
     // Use original ISO dates if available, otherwise reconstruct (might have timezone issues)
-    const fechaHoraInicioISO = citaActual.fecha_y_hora_inicio_iso || toDateTimeISO(citaActual.fecha, citaActual.hora);
-    const fechaHoraFinISO = citaActual.fecha_y_hora_fin_iso || fechaHoraInicioISO; // Assume end = start if not provided
+    const fechaHoraInicioISO =
+      citaActual.fecha_y_hora_inicio_iso ||
+      toDateTimeISO(citaActual.fecha, citaActual.hora);
+    const fechaHoraFinISO =
+      citaActual.fecha_y_hora_fin_iso || fechaHoraInicioISO; // Assume end = start if not provided
 
     if (!fechaHoraInicioISO || !fechaHoraFinISO) {
-        setMsg({ text: "❌ Error: Fecha/Hora inválida para la cita.", type: "error" });
-        return;
+      setMsg({
+        text: "❌ Error: Fecha/Hora inválida para la cita.",
+        type: "error",
+      });
+      return;
     }
 
     // Prepare payload EXACTLY as the API expects
     const payload = {
-      uid: USER_UID, // Psychologist/Admin UID
+      uid: userId, // Psychologist/Admin UID
       id_evento: id_evento,
       nombre_evento: citaActual.nombre,
       descripcion_evento: citaActual.motivo,
-      fecha_y_hora_inicio: fechaHoraInicioISO,
-      fecha_y_hora_fin: fechaHoraFinISO, // Adjust if API needs a different end time
+      fecha_inicio: fechaHoraInicioISO,
+      fecha_fin: fechaHoraFinISO, // Adjust if API needs a different end time
       estado_cita: nuevoEstado,
       asistentes: [citaActual.email].filter(Boolean),
       // Add zona_horaria if the API requires it
@@ -177,11 +205,18 @@ const Citas = () => {
     setMsg({ text: "", type: "info" });
     try {
       console.log("Updating Cita Payload:", JSON.stringify(payload, null, 2));
-      await actualizarCita(payload);
-      setMsg({ text: `✅ Estado de cita actualizado a: ${nuevoEstado}`, type: "success" });
+      const response = await actualizarCita(payload);
+      console.log("Cita updated successfully:", response);
+      setMsg({
+        text: `✅ Estado de cita actualizado a: ${nuevoEstado}`,
+        type: "success",
+      });
       fetchCitas(); // Reload data to show changes
     } catch (err) {
-      setMsg({ text: `❌ Error al actualizar cita: ${err.message}`, type: "error" });
+      setMsg({
+        text: `❌ Error al actualizar cita: ${err.message}`,
+        type: "error",
+      });
       setLoading(false); // Stop loading on error
     }
     // setLoading(false); // Handled by fetchCitas in success case
@@ -189,38 +224,66 @@ const Citas = () => {
 
   // ✅ Function to Delete Appointment
   const handleEliminar = async (id_evento) => {
-    if (!window.confirm("¿Estás seguro de que deseas eliminar esta cita permanentemente?")) {
+    if (
+      !window.confirm(
+        "¿Estás seguro de que deseas eliminar esta cita permanentemente?"
+      )
+    ) {
       return;
     }
 
     // Prepare payload as expected by the API (likely just the event ID)
     const payload = {
-        // uid: USER_UID, // Include UID if required by the API
-        id_evento: id_evento,
+      // uid: USER_UID, // Include UID if required by the API
+      id_evento: id_evento,
     };
 
     setLoading(true);
     setMsg({ text: "", type: "info" });
     try {
-        console.log("Deleting Cita Payload:", JSON.stringify(payload, null, 2));
-        await eliminarCita(payload);
-        setMsg({ text: "✅ Cita eliminada correctamente.", type: "success" });
-        fetchCitas(); // Reload data
+      console.log("Deleting Cita Payload:", JSON.stringify(payload, null, 2));
+      await eliminarCita(payload);
+      setMsg({ text: "✅ Cita eliminada correctamente.", type: "success" });
+      fetchCitas(); // Reload data
     } catch (err) {
-        setMsg({ text: `❌ Error al eliminar cita: ${err.message}`, type: "error" });
-        setLoading(false); // Stop loading on error
+      setMsg({
+        text: `❌ Error al eliminar cita: ${err.message}`,
+        type: "error",
+      });
+      setLoading(false); // Stop loading on error
     }
     // setLoading(false); // Handled by fetchCitas in success case
   };
 
   // Filtros (no change)
-  const limpiarFiltros = () => { /* ... */ setFiltroEstado(""); setFiltroFecha(""); setFiltroNombre(""); };
-  const citasFiltradas = useMemo(() => { /* ... */
-      return [...citas].filter(c=>(c.nombre.toLowerCase().includes(filtroNombre.trim().toLowerCase()))&&(filtroEstado?c.estado===filtroEstado:true)&&(filtroFecha?c.fecha===filtroFecha:true)).sort((a,b)=>{const da=new Date(`${a.fecha}T${a.hora}`).getTime()||0; const db=new Date(`${b.fecha}T${b.hora}`).getTime()||0; return da-db;});
-   }, [citas, filtroEstado, filtroFecha, filtroNombre]);
-  const kpi = useMemo(() => { /* ... */
-      const total=citas.length; const pendientes=citas.filter(c=>c.estado==="Pendiente").length; const atendidas=citas.filter(c=>c.estado==="Atendida").length; const canceladas=citas.filter(c=>c.estado==="Cancelada").length; return{total,pendientes,atendidas,canceladas};
-   }, [citas]);
+  const limpiarFiltros = () => {
+    /* ... */ setFiltroEstado("");
+    setFiltroFecha("");
+    setFiltroNombre("");
+  };
+  const citasFiltradas = useMemo(() => {
+    /* ... */
+    return [...citas]
+      .filter(
+        (c) =>
+          c.nombre.toLowerCase().includes(filtroNombre.trim().toLowerCase()) &&
+          (filtroEstado ? c.estado === filtroEstado : true) &&
+          (filtroFecha ? c.fecha === filtroFecha : true)
+      )
+      .sort((a, b) => {
+        const da = new Date(`${a.fecha}T${a.hora}`).getTime() || 0;
+        const db = new Date(`${b.fecha}T${b.hora}`).getTime() || 0;
+        return da - db;
+      });
+  }, [citas, filtroEstado, filtroFecha, filtroNombre]);
+  const kpi = useMemo(() => {
+    /* ... */
+    const total = citas.length;
+    const pendientes = citas.filter((c) => c.estado === "Pendiente").length;
+    const atendidas = citas.filter((c) => c.estado === "Atendida").length;
+    const canceladas = citas.filter((c) => c.estado === "Cancelada").length;
+    return { total, pendientes, atendidas, canceladas };
+  }, [citas]);
 
   // --- Render (Original Design) ---
   return (
@@ -229,7 +292,10 @@ const Citas = () => {
         {/* Header */}
         <div className="px-5 md:px-6 py-4 md:py-5 rounded-t-2xl bg-indigo-50 dark:bg-indigo-900/30 border-b border-indigo-200/60 dark:border-indigo-800/50">
           <h1 className="text-2xl md:text-3xl font-extrabold text-indigo-700 dark:text-indigo-300 flex items-center gap-2">
-            <span role="img" aria-label="calendar">📅</span> Citas Agendadas
+            <span role="img" aria-label="calendar">
+              📅
+            </span>
+            Citas Agendadas
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Gestiona y filtra tus citas.
@@ -240,34 +306,121 @@ const Citas = () => {
         <div className="p-5 md:p-6 space-y-6">
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-             {/* ... KPI divs ... */}
-             <div className="kpi-card"><div className="kpi-title">Total</div><div className="kpi-value text-indigo-700 dark:text-indigo-300">{kpi.total}</div></div>
-             <div className="kpi-card"><div className="kpi-title">Pendientes</div><div className="kpi-value text-amber-600 dark:text-amber-300">{kpi.pendientes}</div></div>
-             <div className="kpi-card"><div className="kpi-title">Atendidas</div><div className="kpi-value text-emerald-600 dark:text-emerald-300">{kpi.atendidas}</div></div>
-             <div className="kpi-card"><div className="kpi-title">Canceladas</div><div className="kpi-value text-rose-600 dark:text-rose-300">{kpi.canceladas}</div></div>
+            {/* ... KPI divs ... */}
+            <div className="kpi-card">
+              <div className="kpi-title">Total</div>
+              <div className="kpi-value text-indigo-700 dark:text-indigo-300">
+                {kpi.total}
+              </div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-title">Pendientes</div>
+              <div className="kpi-value text-amber-600 dark:text-amber-300">
+                {kpi.pendientes}
+              </div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-title">Atendidas</div>
+              <div className="kpi-value text-emerald-600 dark:text-emerald-300">
+                {kpi.atendidas}
+              </div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-title">Canceladas</div>
+              <div className="kpi-value text-rose-600 dark:text-rose-300">
+                {kpi.canceladas}
+              </div>
+            </div>
           </div>
-
           {/* Filtros */}
-          <div className="sm:hidden"> {/* ... Botón Mostrar/Ocultar ... */} <button onClick={()=>setMostrarFiltros(v=>!v)} className="filter-toggle-button">{mostrarFiltros?"Ocultar":"Mostrar"} filtros</button> </div>
-          <section className={`filter-section ${ mostrarFiltros ? "" : "hidden sm:block" }`}>
+          <div className="sm:hidden">
+            {/* ... Botón Mostrar/Ocultar ... */}
+            <button
+              onClick={() => setMostrarFiltros((v) => !v)}
+              className="filter-toggle-button"
+            >
+              {mostrarFiltros ? "Ocultar" : "Mostrar"} filtros
+            </button>
+          </div>
+          <section
+            className={`filter-section ${
+              mostrarFiltros ? "" : "hidden sm:block"
+            }`}
+          >
             <div className="filter-controls">
               {/* Filtro Nombre */}
-              <div className="filter-group"> <label htmlFor="filtro-nombre-cita" className="filter-label">Buscar nombre</label> <div className="relative"> <input id="filtro-nombre-cita" type="text" value={filtroNombre} onChange={(e)=>setFiltroNombre(e.target.value)} placeholder="Ej. Ana…" className="filter-input-text"/> <span className="filter-icon">🔎</span> </div> </div>
+              <div className="filter-group">
+                <label htmlFor="filtro-nombre-cita" className="filter-label">
+                  Buscar nombre
+                </label>
+                <div className="relative">
+                  <input
+                    id="filtro-nombre-cita"
+                    type="text"
+                    value={filtroNombre}
+                    onChange={(e) => setFiltroNombre(e.target.value)}
+                    placeholder="Ej. Ana…"
+                    className="filter-input-text"
+                  />
+                  <span className="filter-icon">🔎</span>
+                </div>
+              </div>
               {/* Filtro Estado */}
-              <div className="filter-group"> <label htmlFor="filtro-estado-cita" className="filter-label">Estado</label> <select id="filtro-estado-cita" value={filtroEstado} onChange={(e)=>setFiltroEstado(e.target.value)} className="filter-select"> <option value="">Todos</option> <option value="Pendiente">Pendiente</option> <option value="Atendida">Atendida</option> <option value="Cancelada">Cancelada</option> </select> </div>
+              <div className="filter-group">
+                <label htmlFor="filtro-estado-cita" className="filter-label">
+                  Estado
+                </label>
+                <select
+                  id="filtro-estado-cita"
+                  value={filtroEstado}
+                  onChange={(e) => setFiltroEstado(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">Todos</option>
+                  <option value="Pendiente">Pendiente</option>
+                  <option value="Atendida">Atendida</option>
+                  <option value="Cancelada">Cancelada</option>
+                </select>
+              </div>
               {/* Filtro Fecha */}
-              <div className="filter-group"> <label htmlFor="filtro-fecha-cita" className="filter-label">Fecha</label> <input id="filtro-fecha-cita" type="date" value={filtroFecha} onChange={(e)=>setFiltroFecha(e.target.value)} className="filter-input-date"/> </div>
+              <div className="filter-group">
+                <label htmlFor="filtro-fecha-cita" className="filter-label">
+                  Fecha
+                </label>
+                <input
+                  id="filtro-fecha-cita"
+                  type="date"
+                  value={filtroFecha}
+                  onChange={(e) => setFiltroFecha(e.target.value)}
+                  className="filter-input-date"
+                />
+              </div>
               {/* Botón Limpiar */}
-              <div className="ml-auto"> <button onClick={limpiarFiltros} className="clear-filter-button"> 🔄 Limpiar </button> </div>
+              <div className="ml-auto">
+                <button
+                  onClick={limpiarFiltros}
+                  className="clear-filter-button"
+                >
+                  🔄 Limpiar
+                </button>
+              </div>
             </div>
           </section>
-
           {/* Message Area */}
           {msg.text && (
-            <div className={`p-3 rounded-lg text-sm font-semibold ${msg.type === 'error' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300' : (msg.type === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300')}`}>
+            <div
+              className={`p-3 rounded-lg text-sm font-semibold ${
+                msg.type === "error"
+                  ? "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300"
+                  : msg.type === "success"
+                  ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                  : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+              }`}
+            >
               {msg.text}
             </div>
-          )}          {/* Mensaje de Carga o Tabla de Citas */}
+          )}
+          {/* Mensaje de Carga o Tabla de Citas */}
           {loading ? (
             <div className="loading-message"> Cargando citas... </div>
           ) : (
@@ -275,12 +428,35 @@ const Citas = () => {
               <table className="appointments-table">
                 <thead>
                   <tr>
-                    {["Nombre", "Fecha", "Hora", "Motivo", "Reunión", "Estado", "Acciones"].map((h, i, arr) => ( <th key={h} className={`table-header ${ i === 0 ? "rounded-tl-xl" : ""} ${i === arr.length - 1 ? "rounded-tr-xl" : ""}`}> {h} </th> ))}
+                    {[
+                      "Nombre",
+                      "Fecha",
+                      "Hora",
+                      "Motivo",
+                      "Reunión",
+                      "Estado",
+                      "Acciones",
+                    ].map((h, i, arr) => (
+                      <th
+                        key={h}
+                        className={`table-header ${
+                          i === 0 ? "rounded-tl-xl" : ""
+                        } ${i === arr.length - 1 ? "rounded-tr-xl" : ""}`}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {citasFiltradas.length === 0 ? (
-                    <tr> <td colSpan={7} className="table-empty-message"> {citas.length === 0 ? "No hay citas registradas." : "No hay citas que coincidan con los filtros."} </td> </tr>
+                    <tr>
+                      <td colSpan={7} className="table-empty-message">
+                        {citas.length === 0
+                          ? "No hay citas registradas."
+                          : "No hay citas que coincidan con los filtros."}
+                      </td> 
+                    </tr>
                   ) : (
                     citasFiltradas.map((cita) => (
                       <tr key={cita.id_evento} className="table-row">
@@ -290,9 +466,9 @@ const Citas = () => {
                         <td className="table-cell">{cita.motivo}</td>
                         <td className="table-cell">
                           {cita.meetLink ? (
-                            <a 
-                              href={cita.meetLink} 
-                              target="_blank" 
+                            <a
+                              href={cita.meetLink}
+                              target="_blank"
                               rel="noopener noreferrer"
                               className="meet-link"
                               title="Abrir Google Meet"
@@ -300,17 +476,58 @@ const Citas = () => {
                               📹 Unirse a la reunión
                             </a>
                           ) : (
-                            <span className="text-gray-400 dark:text-gray-500 text-xs">Sin enlace</span>
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">
+                              Sin enlace
+                            </span>
                           )}
                         </td>
-                        <td className="table-cell"> <EstadoBadge estado={cita.estado} /> </td>
+                        <td className="table-cell">
+                          <EstadoBadge estado={cita.estado} />
+                        </td>
                         <td className="table-cell">
                           {/* Botones de Acciones */}
                           <div className="action-buttons">
-                            {cita.estado !== "Atendida" && ( <button onClick={() => actualizarEstado(cita.id_evento, "Atendida")} disabled={loading} className="action-button attend-button"> ✓ Atendida </button> )}
-                            {cita.estado !== "Cancelada" && ( <button onClick={() => actualizarEstado(cita.id_evento, "Cancelada")} disabled={loading} className="action-button cancel-button"> ✕ Cancelar </button> )}
-                            {cita.estado !== "Pendiente" && ( <button onClick={() => actualizarEstado(cita.id_evento, "Pendiente")} disabled={loading} className="action-button pending-button"> ⌛ Pendiente </button> )}
-                            <button onClick={() => handleEliminar(cita.id_evento)} disabled={loading} className="action-button delete-button" title="Eliminar Cita"> 🗑️ Eliminar </button>
+                            {cita.estado !== "ATENDIDA" && (
+                              <button
+                                onClick={() =>
+                                  actualizarEstado(cita.id_evento, "ATENDIDA")
+                                }
+                                disabled={loading}
+                                className="action-button attend-button"
+                              >
+                                ✓ Atendida
+                              </button>
+                            )}
+                            {cita.estado !== "CANCELADA" && (
+                              <button
+                                onClick={() =>
+                                  actualizarEstado(cita.id_evento, "CANCELADA")
+                                }
+                                disabled={loading}
+                                className="action-button cancel-button"
+                              >
+                                ✕ Cancelar
+                              </button>
+                            )}
+                            {cita.estado !== "PENDIENTE" && (
+                              <button
+                                onClick={() =>
+                                  actualizarEstado(cita.id_evento, "PENDIENTE")
+                                }
+                                disabled={loading}
+                                className="action-button pending-button"
+                              >
+                                ⌛ Pendiente
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleEliminar(cita.id_evento)}
+                              disabled={loading}
+                              className="action-button delete-button"
+                              title="Eliminar Cita"
+                            >
+                              🗑️ Eliminar
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -322,8 +539,8 @@ const Citas = () => {
           )}
         </div>
       </div>
-       {/* Basic Styles - Move to global CSS */}
-       <style>{`
+      {/* Basic Styles - Move to global CSS */}
+      <style>{`
           .kpi-card { border-radius: 0.75rem; border: 1px solid #e5e7eb; padding: 0.75rem; }
           .dark .kpi-card { border-color: #374151; }
           .kpi-title { font-size: 0.75rem; color: #6b7280; } .dark .kpi-title { color: #9ca3af; }
