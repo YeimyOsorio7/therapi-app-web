@@ -88,7 +88,19 @@ const ChatBot = () => {
 
   useEffect(() => {
     if (!userId) return;
-    setMessages(loadHistory(userId));
+    const history = loadHistory(userId);
+    
+    // Si no hay historial, agregar mensaje de bienvenida
+    if (history.length === 0) {
+      const welcomeMessage = {
+        sender: 'bot',
+        text: 'Holaa!, ¿Cómo te sientes?'
+      };
+      setMessages([welcomeMessage]);
+    } else {
+      setMessages(history);
+    }
+    
     setProfile(loadProfile(userId));
   }, [userId]);
 

@@ -176,7 +176,7 @@ export default function AuthLogin() {
                   htmlFor="user-login"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Usuario o Correo electrónico
+                  Ingresa tu usuario
                 </label>
                 <input
                   id="user-login"
