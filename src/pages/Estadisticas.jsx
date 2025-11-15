@@ -34,6 +34,7 @@ const defaultStats = {
   edadBandsHM: [],        // [{name,H,M,T}]
   diagnosticoHM: [],      // [{name, cie, H, M, T}]
   terapiaHM: [],          // [{name, H, M, T}]
+  referenciaData: [],     // [{no, nombre_paciente, edad, fecha_referencia, motivo, institucion, institucion_sel, obs, informacion_adicional}]
   error: null,
 };
 
@@ -165,27 +166,70 @@ const generateDocxReport = (s) => {
     terRows.push(row(['', {text:'TOTALES',opts:{bold:true,center:false}}, '', '', {text:terTotal,opts:{bold:true}}]));
     const t4 = table(terRows, [600, 3000, 900, 900, 900]);
 
+    // 5) PACIENTES REFERIDOS (tabla resumida)
+    const referenciaListado = Array.isArray(s.referenciaData) ? s.referenciaData : [];
+    let t5 = null;
+    if (referenciaListado.length > 0) {
+      const refRows = [
+        row([
+          {text:'No. Ref',opts:{bold:true}},
+          {text:'Nombre del paciente',opts:{bold:true,center:false}},
+          {text:'Edad',opts:{bold:true}},
+          {text:'Fecha',opts:{bold:true}},
+          {text:'Motivo',opts:{bold:true,center:false}},
+          {text:'Institución',opts:{bold:true,center:false}},
+          {text:'Observaciones',opts:{bold:true,center:false}},
+          {text:'Inf. adicional',opts:{bold:true,center:false}},
+        ]),
+      ];
+      referenciaListado.forEach((ref, idx) => {
+        refRows.push(row([
+          ref.no || idx + 1,
+          { text: ref.nombre_paciente || 'Sin nombre', opts: { center: false } },
+          ref.edad || '',
+          ref.fecha_referencia || '',
+          { text: ref.motivo || '', opts: { center: false } },
+          { text: ref.institucion_sel || ref.institucion || '', opts: { center: false } },
+          { text: ref.obs || '', opts: { center: false } },
+          { text: ref.informacion_adicional || '', opts: { center: false } },
+        ]));
+      });
+      t5 = table(refRows, [1000, 2800, 900, 1400, 2800, 2200, 2800, 2800]);
+    }
+
+    const docChildren = [
+      new Paragraph({
+        alignment: AlignmentType.LEFT,
+        children: [new TextRun({ text: `INFORME MES DE ${tituloMes}, DISTRITO SANTA MARÍA CHIQUIMULA`, bold: true })],
+      }),
+      space(),
+      subtitulo('PRIMERA CONSULTA, RECONSULTA Y SEXO'),
+      t1,
+      space(),
+      subtitulo('POR PATOLOGÍA'),
+      t2,
+      space(),
+      subtitulo('POR EDAD'),
+      t3,
+      space(),
+      subtitulo('POR TIPO DE TERAPIA'),
+      t4,
+      space(),
+      subtitulo('PACIENTES REFERIDOS'),
+    ];
+    if (t5) {
+      docChildren.push(t5);
+    } else {
+      docChildren.push(new Paragraph({
+        alignment: AlignmentType.LEFT,
+        children: [new TextRun({ text: 'No se registraron pacientes referidos en el periodo.', italics: true })],
+      }));
+    }
+
     const doc = new Document({
       sections: [{
         properties: {},
-        children: [
-          new Paragraph({
-            alignment: AlignmentType.LEFT,
-            children: [new TextRun({ text: `INFORME MES DE ${tituloMes}, DISTRITO SANTA MARÍA CHIQUIMULA`, bold: true })],
-          }),
-          space(),
-          subtitulo('PRIMERA CONSULTA, RECONSULTA Y SEXO'),
-          t1,
-          space(),
-          subtitulo('POR PATOLOGÍA'),
-          t2,
-          space(),
-          subtitulo('POR EDAD'),
-          t3,
-          space(),
-          subtitulo('POR TIPO DE TERAPIA'),
-          t4,
-        ],
+        children: docChildren,
       }],
     });
 
@@ -223,6 +267,7 @@ const Estadisticas = () => {
     setLoading(true); setStats(defaultStats);
     try {
       const data = await getAllPacientes();
+      console.log('Datos de pacientes recibidos:', data);
       if (!data || !Array.isArray(data.patients)) {
         throw new Error("Formato de datos incorrecto.");
       }
@@ -254,6 +299,7 @@ const Estadisticas = () => {
       // diagnósticos y terapias con HM
       const diagMap = new Map();   // key=name -> {cie, H,M,T}
       const terapiaMap = new Map();// key=name -> {H,M,T}
+      const referenciaData = [];   // referencias para DOCX
 
       // otros para gráficos
       const municipioMap = new Map();
@@ -364,6 +410,25 @@ if (!Number.isNaN(edad)) {
           if (sexo === 'H') prev.H++; else if (sexo === 'M') prev.M++;
           prev.T++; terapiaMap.set(terapia, prev);
         }
+
+        // ---- datos de referencia para DOCX
+        const refInfo = f.referencia && typeof f.referencia === 'object' ? f.referencia : null;
+        const isReferido = normCheck(f.paciente_referido) || normCheck(s.paciente_referido) || Boolean(refInfo);
+        if (isReferido && refInfo) {
+          const fallbackNombre =
+            f.nombre || f.nombre_paciente || s.nombre || s.nombre_paciente || '';
+          referenciaData.push({
+            no: refInfo.no || '',
+            nombre_paciente: (refInfo.nombre_paciente || fallbackNombre || '').toString().trim(),
+            edad: refInfo.edad || (!Number.isNaN(edad) ? String(edad) : ''),
+            fecha_referencia: refInfo.fecha_referencia || '',
+            motivo: refInfo.motivo || '',
+            institucion_sel: refInfo.institucion_sel || '',
+            institucion: refInfo.institucion || '',
+            obs: refInfo.obs || '',
+            informacion_adicional: refInfo.informacion_adicional || '',
+          });
+        }
       });
 
       // Datos para gráficos
@@ -407,6 +472,7 @@ if (!Number.isNaN(edad)) {
         edadBandsHM,
         diagnosticoHM,
         terapiaHM,
+        referenciaData,
         error: null,
       });
     } catch (error) {
@@ -429,7 +495,6 @@ if (!Number.isNaN(edad)) {
   // === UI y gráficos (sin cambios de estilos) ===
   const pieGenderData = stats.generoData;
   const barAgeData = stats.edadGroupData;
-  const barMunicipioData = stats.municipioData;
   const pieConsultaData = stats.consultaTypeData;
 
   if (loading) {
